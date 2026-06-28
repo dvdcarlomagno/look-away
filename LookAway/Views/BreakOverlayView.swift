@@ -3,7 +3,9 @@ import SwiftUI
 
 struct BreakOverlayView: View {
     @ObservedObject var engine: TimerEngine
+    @ObservedObject var overlayController: BreakOverlayController
     let onEndBreak: () -> Void
+    let onEmergencyExit: () -> Void
 
     private var formattedTime: String {
         let total = Int(max(0, engine.remainingSeconds.rounded()))
@@ -13,79 +15,113 @@ struct BreakOverlayView: View {
     }
 
     var body: some View {
-        ZStack {
-            VisualEffectBackground(material: .fullScreenUI, blendingMode: .behindWindow)
-                .ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                VisualEffectBackground(material: .fullScreenUI, blendingMode: .behindWindow)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
 
-            Color.black.opacity(0.10)
-                .ignoresSafeArea()
+                Color.black.opacity(0.10)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
 
-            RadialGradient(
-                colors: [LookAwayBrand.pink.opacity(0.16), .clear],
-                center: .center,
-                startRadius: 20,
-                endRadius: 420
-            )
-            .ignoresSafeArea()
+                RadialGradient(
+                    colors: [LookAwayBrand.pink.opacity(0.16), .clear],
+                    center: .center,
+                    startRadius: 20,
+                    endRadius: max(geometry.size.width, geometry.size.height) * 0.35
+                )
+                .frame(width: geometry.size.width, height: geometry.size.height)
 
-            breakPanel
-                .frame(maxWidth: 380)
-                .padding(.horizontal, 40)
+                breakPanel
+                    .frame(maxWidth: min(380, geometry.size.width - 48))
+
+                if let warning = overlayController.shortcutWarning {
+                    VStack {
+                        Spacer()
+                        Text(warning)
+                            .font(.system(.caption, design: .rounded, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background {
+                                Capsule()
+                                    .fill(Color.black.opacity(0.72))
+                            }
+                            .padding(.bottom, max(24, geometry.safeAreaInsets.bottom + 16))
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .allowsHitTesting(false)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .animation(.easeInOut(duration: 0.2), value: overlayController.shortcutWarning)
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
     }
 
     private var breakPanel: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(formattedTime)
-                        .font(.system(size: 40, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-
-                    Text("Rest your eyes")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
-
+        VStack(spacing: 16) {
+            HStack {
                 LookAwayStatusChip(text: "Break", tint: LookAwayBrand.pink)
+                Spacer(minLength: 0)
+                StreakBadge(count: engine.consecutiveBreaks)
             }
 
-            HStack(spacing: 16) {
-                PhaseProgressRing(
-                    progress: engine.progressFraction,
-                    symbol: "eyes",
-                    tint: LookAwayBrand.pink
+            VStack(spacing: 4) {
+                Text(formattedTime)
+                    .font(.system(size: 40, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+
+                Text("Rest your eyes")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+
+            PhaseProgressRing(
+                progress: engine.progressFraction,
+                symbol: "eyes",
+                tint: LookAwayBrand.pink
+            )
+
+            VStack(spacing: 6) {
+                Text("Look away")
+                    .font(.system(.title3, design: .rounded, weight: .semibold))
+
+                Text("Step away from the screen and give your eyes a rest.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if engine.appliedPenaltyMinutes > 0 {
+                    Text("+\(engine.appliedPenaltyMinutes) min from skipped break")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+
+            VStack(spacing: 8) {
+                HoldToConfirmButton(
+                    title: "Skip Break",
+                    holdingTitle: "Keep holding…",
+                    systemImage: "forward.end.fill",
+                    role: .destructive,
+                    centered: true,
+                    onConfirm: onEndBreak
                 )
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Look away")
-                        .font(.system(.title3, design: .rounded, weight: .semibold))
-
-                    Text("Break ends in \(formattedTime)")
-                        .font(.system(.body, design: .rounded))
-                        .foregroundStyle(.secondary)
-
-                    Text("Step away from the screen and give your eyes a rest.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                if engine.allowEmergencyExit {
+                    Button("Emergency exit…") {
+                        onEmergencyExit()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
-
-                Spacer(minLength: 0)
             }
-            .padding(14)
-            .lookAwaySurface(cornerRadius: 12)
-
-            Button {
-                onEndBreak()
-            } label: {
-                Label("End Break Early…", systemImage: "forward.end.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(MenuActionButtonStyle(centered: true))
         }
         .padding(20)
         .background {

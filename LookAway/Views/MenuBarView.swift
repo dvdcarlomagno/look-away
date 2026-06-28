@@ -72,6 +72,15 @@ final class AppViewModel: ObservableObject {
         )
     }
 
+    func restartTimer() {
+        timerEngine.restartTimer()
+        timerEngine.handleExternalPause(
+            micActive: microphoneMonitor.isMicActive,
+            systemPaused: sleepWakeMonitor.isSystemPaused,
+            userIdle: idleMonitor.isIdle
+        )
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         guard enabled != LaunchAtLoginManager.isEnabled else { return }
         if LaunchAtLoginManager.setEnabled(enabled) {
@@ -85,6 +94,8 @@ final class AppViewModel: ObservableObject {
 }
 
 struct MenuBarView: View {
+    @Environment(\.dismiss) private var dismiss
+
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject var timerEngine: TimerEngine
     @State private var showsSettings = false
@@ -110,13 +121,18 @@ struct MenuBarView: View {
             footer
         }
         .padding(12)
-        .frame(width: showsSettings ? 320 : 248)
+        .frame(width: showsSettings ? 320 : 280)
         .fixedSize(horizontal: false, vertical: true)
         .background(Color.clear)
         .animation(.smooth(duration: 0.22), value: showsSettings)
         .onChange(of: viewModel.configManager.config) { _, newValue in
             draftConfig = newValue
         }
+        .onReceive(NotificationCenter.default.publisher(for: .lookAwayBreakStarted)) { _ in
+            dismiss()
+        }
+        .disabled(timerEngine.phase == .onBreak)
+        .opacity(timerEngine.phase == .onBreak ? 0.6 : 1)
     }
 
     private var compactHeader: some View {
@@ -140,32 +156,59 @@ struct MenuBarView: View {
 
             Spacer(minLength: 0)
 
-            if timerEngine.phase == .onBreak {
-                LookAwayStatusChip(text: "Break", tint: LookAwayBrand.pink)
-            } else if timerEngine.phase == .paused {
-                LookAwayStatusChip(text: "Paused", tint: .orange)
+            HStack(spacing: 8) {
+                StreakBadge(count: timerEngine.consecutiveBreaks, compact: true)
+
+                if timerEngine.phase == .onBreak {
+                    LookAwayStatusChip(text: "Break", tint: LookAwayBrand.pink)
+                } else if timerEngine.phase == .paused {
+                    LookAwayStatusChip(text: "Paused", tint: .orange)
+                }
             }
         }
     }
 
     private var quickActions: some View {
-        HStack(spacing: 6) {
-            menuButton(
-                title: timerEngine.isManuallyPaused ? "Resume" : "Pause",
-                symbol: timerEngine.isManuallyPaused ? "play.fill" : "pause.fill",
-                centered: true
-            ) {
-                viewModel.togglePause()
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                menuButton(
+                    title: timerEngine.isManuallyPaused ? "Resume" : "Pause",
+                    symbol: timerEngine.isManuallyPaused ? "play.fill" : "pause.fill",
+                    centered: true
+                ) {
+                    viewModel.togglePause()
+                }
+
+                HoldToConfirmButton(
+                    title: "Restart",
+                    holdingTitle: "Keep holding…",
+                    systemImage: "arrow.clockwise",
+                    centered: true,
+                    onConfirm: { viewModel.restartTimer() }
+                )
             }
 
             if timerEngine.phase == .onBreak {
-                menuButton(title: "Skip", symbol: "forward.end.fill", centered: true) {
-                    viewModel.timerEngine.skipBreak()
-                }
+                HoldToConfirmButton(
+                    title: "Skip",
+                    holdingTitle: "Keep holding…",
+                    systemImage: "forward.end.fill",
+                    role: .destructive,
+                    centered: true,
+                    onConfirm: { viewModel.timerEngine.abortBreakEarly() }
+                )
             } else {
                 menuButton(title: "Break", symbol: "cup.and.saucer.fill", centered: true) {
                     viewModel.timerEngine.startBreakNow()
                 }
+            }
+
+            if timerEngine.pendingPenaltyMinutes > 0 && timerEngine.phase != .onBreak {
+                Text("Next break +\(timerEngine.pendingPenaltyMinutes) min from skip")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 2)
             }
         }
     }
@@ -209,6 +252,20 @@ struct MenuBarView: View {
                     unit: "s"
                 )
             }
+
+            ConfigNumberRow(
+                title: "Skip penalty",
+                subtitle: "Extra minutes on next break",
+                value: skipPenaltyMinutesBinding,
+                range: 0...60,
+                unit: "m"
+            )
+
+            ConfigToggleRow(
+                title: "Emergency exit",
+                subtitle: "Show link on break screen",
+                isOn: allowEmergencyExitBinding
+            )
 
             Button {
                 viewModel.configManager.openConfigFile()
@@ -257,6 +314,7 @@ struct MenuBarView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(MenuActionButtonStyle(role: .destructive))
+            .disabled(timerEngine.phase == .onBreak)
             .keyboardShortcut("q")
         }
     }
@@ -279,6 +337,20 @@ struct MenuBarView: View {
         Binding(
             get: { draftConfig.preBreakWarningMinutes },
             set: { newValue in updateDraft { $0.preBreakWarningMinutes = newValue } }
+        )
+    }
+
+    private var skipPenaltyMinutesBinding: Binding<Int> {
+        Binding(
+            get: { draftConfig.skipPenaltyMinutes },
+            set: { newValue in updateDraft { $0.skipPenaltyMinutes = newValue } }
+        )
+    }
+
+    private var allowEmergencyExitBinding: Binding<Bool> {
+        Binding(
+            get: { draftConfig.allowEmergencyExit },
+            set: { newValue in updateDraft { $0.allowEmergencyExit = newValue } }
         )
     }
 

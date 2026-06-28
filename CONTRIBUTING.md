@@ -34,12 +34,22 @@ open build/LookAway.app
 | Path | Purpose |
 |------|---------|
 | `LookAway/LookAwayApp.swift` | App entry point, menu bar extra |
-| `LookAway/Models/` | Data models (`AppConfig`) |
-| `LookAway/Services/` | Timer, config, monitors (mic, idle, sleep), launch-at-login |
-| `LookAway/Views/` | SwiftUI UI (menu bar panel, break overlay, glass styling) |
+| `LookAway/Models/` | Data models (`AppConfig`, `BreakStats`) |
+| `LookAway/Services/` | Timer, config, monitors (mic, idle, sleep), launch-at-login, input shield |
+| `LookAway/Views/` | SwiftUI UI (menu bar panel, break overlay, hold-to-confirm controls) |
 | `LookAway/Controllers/` | `NSPanel` overlay controller for multi-display breaks |
 | `scripts/` | App icon generation |
 | `build.sh` | Command-line build without full Xcode |
+
+### Key services
+
+| File | Purpose |
+|------|---------|
+| `TimerEngine.swift` | Work/break/pause phases, streak, skip penalty |
+| `BreakOverlayController.swift` | Multi-monitor overlay panels, emergency exit |
+| `BreakInputShield.swift` | Blocks ⌘Q / ⌘W / ⌘Tab / Esc during breaks |
+| `BreakStats.swift` | Streak and pending penalty persistence (`stats.json`) |
+| `MenuBarWindowDismisser.swift` | Closes menu bar window when break starts |
 
 ## Coding guidelines
 
@@ -48,13 +58,20 @@ open build/LookAway.app
 - Prefer extending existing services over adding parallel implementations.
 - No new dependencies unless discussed in an issue first; the app intentionally stays dependency-free.
 - Test on both Apple Silicon and Intel when touching build or platform code.
+- When changing `build.sh` source list, update `LookAway.xcodeproj` in the same PR.
 
 ## Pull request process
 
 1. Fork the repository and create a branch from `main`.
 2. Make focused changes with a clear commit message.
 3. Verify the app builds with `./build.sh` (or Xcode).
-4. Manually smoke-test: timer tick, break overlay, pause/resume, settings persistence.
+4. Manually smoke-test:
+   - Timer tick, pause/resume, restart (hold)
+   - Break overlay appears centered on all displays
+   - Hold **Skip Break** ends break early (streak resets, penalty applied)
+   - **Emergency exit** ends break without penalty
+   - Menu bar closes and disables during break
+   - Settings persist to `config.json`
 5. Open a PR describing **what** changed and **why**.
 6. Link any related issues.
 
@@ -67,6 +84,7 @@ Include:
 - Steps to reproduce
 - Expected vs actual behavior
 - Screenshots or screen recordings when UI-related
+- Single vs multi-monitor setup if overlay-related
 
 ## Feature requests
 

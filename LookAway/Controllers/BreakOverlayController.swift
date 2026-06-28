@@ -3,9 +3,13 @@ import SwiftUI
 
 @MainActor
 final class BreakOverlayController: ObservableObject {
+    @Published private(set) var shortcutWarning: String?
+
     private var panels: [NSPanel] = []
-    private var hostingControllers: [NSHostingController<BreakOverlayView>] = []
     private weak var timerEngine: TimerEngine?
+    private let inputShield = BreakInputShield()
+    private var keepFrontTimer: Timer?
+    private var warningClearTimer: Timer?
 
     func bind(to engine: TimerEngine) {
         timerEngine = engine
@@ -47,16 +51,23 @@ final class BreakOverlayController: ObservableObject {
 
     func showOverlay() {
         hideOverlay()
+        MenuBarWindowDismisser.closeIfOpen()
         guard let engine = timerEngine else { return }
 
-        for screen in NSScreen.screens {
+        inputShield.onBlockedShortcut = { [weak self] message in
+            self?.showShortcutWarning(message)
+        }
+        inputShield.activate()
+        startKeepFrontTimer()
+
+        for (index, screen) in NSScreen.screens.enumerated() {
             let panel = NSPanel(
                 contentRect: screen.frame,
-                styleMask: [.borderless, .nonactivatingPanel],
+                styleMask: [.borderless],
                 backing: .buffered,
                 defer: false
             )
-            panel.level = .screenSaver
+            panel.level = BreakOverlayWindowLevel.shield
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
             panel.isOpaque = false
             panel.backgroundColor = .clear
@@ -64,47 +75,105 @@ final class BreakOverlayController: ObservableObject {
             panel.hidesOnDeactivate = false
             panel.ignoresMouseEvents = false
             panel.isFloatingPanel = true
+            panel.becomesKeyOnlyIfNeeded = false
 
             let view = BreakOverlayView(
                 engine: engine,
-                onEndBreak: { [weak self, weak engine] in
-                    self?.requestEndBreakEarly(engine: engine)
+                overlayController: self,
+                onEndBreak: { [weak engine] in
+                    engine?.abortBreakEarly()
+                },
+                onEmergencyExit: { [weak self, weak engine] in
+                    self?.requestEmergencyExit(engine: engine)
                 }
             )
 
             let hosting = NSHostingController(rootView: view)
-            hosting.view.frame = screen.frame
+            if #available(macOS 13.0, *) {
+                hosting.sizingOptions = []
+            }
             panel.contentViewController = hosting
+            pinHostingViewToPanel(hosting, panel: panel)
             panel.setFrame(screen.frame, display: true)
             panel.orderFrontRegardless()
 
             panels.append(panel)
-            hostingControllers.append(hosting)
+
+            if index == 0 {
+                panel.makeKeyAndOrderFront(nil)
+            }
         }
 
         NSApp.activate(ignoringOtherApps: true)
     }
 
     func hideOverlay() {
+        stopKeepFrontTimer()
+        inputShield.deactivate()
+        warningClearTimer?.invalidate()
+        warningClearTimer = nil
+        shortcutWarning = nil
+
         for panel in panels {
             panel.orderOut(nil)
             panel.close()
         }
         panels.removeAll()
-        hostingControllers.removeAll()
     }
 
-    private func requestEndBreakEarly(engine: TimerEngine?) {
+    private func startKeepFrontTimer() {
+        stopKeepFrontTimer()
+        keepFrontTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, !self.panels.isEmpty else { return }
+                for panel in self.panels {
+                    panel.orderFrontRegardless()
+                }
+            }
+        }
+        if let keepFrontTimer {
+            RunLoop.main.add(keepFrontTimer, forMode: .common)
+        }
+    }
+
+    private func stopKeepFrontTimer() {
+        keepFrontTimer?.invalidate()
+        keepFrontTimer = nil
+    }
+
+    private func showShortcutWarning(_ message: String) {
+        shortcutWarning = message
+
+        warningClearTimer?.invalidate()
+        warningClearTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.shortcutWarning = nil
+            }
+        }
+    }
+
+    private func requestEmergencyExit(engine: TimerEngine?) {
         let alert = NSAlert()
-        alert.messageText = "End break early?"
-        alert.informativeText = "Are you sure you want to end this break before the timer finishes?"
+        alert.messageText = "Emergency exit?"
+        alert.informativeText = "Your break streak will reset. Unlike Skip Break, no extra time is added to your next break. Use this only when you truly need to leave."
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "End Break")
+        alert.addButton(withTitle: "Emergency Exit")
         alert.addButton(withTitle: "Keep Resting")
 
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            engine?.confirmEndBreakEarly()
+        if alert.runModal() == .alertFirstButtonReturn {
+            engine?.abortBreakEmergency()
         }
+    }
+
+    private func pinHostingViewToPanel(_ hosting: NSHostingController<BreakOverlayView>, panel: NSPanel) {
+        guard let contentView = panel.contentView else { return }
+        let hostView = hosting.view
+        hostView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            hostView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            hostView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            hostView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            hostView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+        ])
     }
 }

@@ -19,6 +19,9 @@ final class TimerEngine: ObservableObject {
     /// Lightweight menu-bar fields — only published when their values change.
     @Published private(set) var menuBarCompactText: String = ""
     @Published private(set) var menuBarSymbol: String = "eyes"
+    @Published private(set) var consecutiveBreaks: Int = 0
+    @Published private(set) var pendingPenaltyMinutes: Int = 0
+    @Published private(set) var appliedPenaltyMinutes: Int = 0
 
     private var config: AppConfig
     private var tickTimer: Timer?
@@ -81,7 +84,7 @@ final class TimerEngine: ObservableObject {
         case .preBreakWarning:
             return config.preBreakWarningSeconds
         case .onBreak:
-            return config.breakDurationSeconds
+            return config.breakDurationSeconds + TimeInterval(appliedPenaltyMinutes * 60)
         case .paused:
             return config.workDurationSeconds
         }
@@ -97,6 +100,7 @@ final class TimerEngine: ObservableObject {
         self.config = config
         internalRemaining = config.workDurationSeconds
         remainingSeconds = config.workDurationSeconds
+        loadBreakStats()
         syncMenuBarPresentation(force: true)
         startTicking()
     }
@@ -138,9 +142,41 @@ final class TimerEngine: ObservableObject {
         beginBreak()
     }
 
-    func skipBreak() {
+    /// Ends the current break early — breaks streak and adds penalty to the next break.
+    func abortBreakEarly() {
         guard phase == .onBreak else { return }
-        endBreak()
+        recordEarlyAbort(applyPenalty: true)
+        transitionToWorkingAfterBreak()
+    }
+
+    /// Emergency exit — breaks streak but does not add skip penalty to the next break.
+    func abortBreakEmergency() {
+        guard phase == .onBreak else { return }
+        recordEarlyAbort(applyPenalty: false)
+        transitionToWorkingAfterBreak()
+    }
+
+    var allowEmergencyExit: Bool {
+        config.allowEmergencyExit
+    }
+
+    func skipBreak() {
+        abortBreakEarly()
+    }
+
+    /// Resets the work interval to the configured duration and resumes if only manually paused.
+    func restartTimer() {
+        if phase == .onBreak {
+            abortBreakEarly()
+        }
+
+        phase = .working
+        internalRemaining = config.workDurationSeconds
+        preBreakWarningSent = false
+        isManuallyPaused = false
+        statusDetail = ""
+        publishRemainingIfDisplayChanged(force: true)
+        if tickTimer == nil { startTicking() }
     }
 
     func handleExternalPause(micActive: Bool, systemPaused: Bool, userIdle: Bool = false) {
@@ -170,8 +206,7 @@ final class TimerEngine: ObservableObject {
     }
 
     func confirmEndBreakEarly() {
-        guard phase == .onBreak else { return }
-        endBreak()
+        abortBreakEarly()
     }
 
     private func startTicking() {
@@ -279,7 +314,12 @@ final class TimerEngine: ObservableObject {
 
     private func beginBreak() {
         phase = .onBreak
-        internalRemaining = config.breakDurationSeconds
+        appliedPenaltyMinutes = pendingPenaltyMinutes
+        if appliedPenaltyMinutes > 0 {
+            pendingPenaltyMinutes = 0
+            persistBreakStats()
+        }
+        internalRemaining = config.breakDurationSeconds + TimeInterval(appliedPenaltyMinutes * 60)
         preBreakWarningSent = false
         statusDetail = ""
         publishRemainingIfDisplayChanged(force: true)
@@ -288,13 +328,47 @@ final class TimerEngine: ObservableObject {
     }
 
     private func endBreak() {
+        recordNaturalCompletion()
+        transitionToWorkingAfterBreak()
+    }
+
+    private func transitionToWorkingAfterBreak() {
         phase = .working
         internalRemaining = config.workDurationSeconds
         preBreakWarningSent = false
         statusDetail = ""
+        appliedPenaltyMinutes = 0
         publishRemainingIfDisplayChanged(force: true)
         if tickTimer == nil { startTicking() }
         NotificationCenter.default.post(name: .lookAwayBreakEnded, object: nil)
+    }
+
+    private func loadBreakStats() {
+        let stats = BreakStatsStore.load()
+        consecutiveBreaks = stats.consecutiveBreaks
+        pendingPenaltyMinutes = stats.pendingPenaltyMinutes
+    }
+
+    private func persistBreakStats() {
+        BreakStatsStore.save(
+            BreakStats(
+                consecutiveBreaks: consecutiveBreaks,
+                pendingPenaltyMinutes: pendingPenaltyMinutes
+            )
+        )
+    }
+
+    private func recordNaturalCompletion() {
+        consecutiveBreaks += 1
+        persistBreakStats()
+    }
+
+    private func recordEarlyAbort(applyPenalty: Bool) {
+        consecutiveBreaks = 0
+        if applyPenalty, config.skipPenaltyMinutes > 0 {
+            pendingPenaltyMinutes += config.skipPenaltyMinutes
+        }
+        persistBreakStats()
     }
 
     private func reevaluatePhase(micActive: Bool? = nil, systemPaused: Bool? = nil, userIdle: Bool? = nil) {

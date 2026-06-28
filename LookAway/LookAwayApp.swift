@@ -4,11 +4,17 @@ import SwiftUI
 struct LookAwayApp: App {
     @StateObject private var viewModel = AppViewModel()
 
+    private var isBreakLocked: Bool {
+        viewModel.timerEngine.phase == .onBreak
+    }
+
     var body: some Scene {
         MenuBarExtra {
             MenuBarView(viewModel: viewModel, timerEngine: viewModel.timerEngine)
         } label: {
             MenuBarLabelView(engine: viewModel.timerEngine)
+                .disabled(isBreakLocked)
+                .opacity(isBreakLocked ? 0.35 : 1)
         }
         .menuBarExtraStyle(.window)
     }
