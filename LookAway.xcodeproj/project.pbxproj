@@ -23,7 +23,6 @@
 		A10000000000000E /* MenuControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000010 /* MenuControls.swift */; };
 		A10000000000000D /* NativeGlassBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000F /* NativeGlassBridge.swift */; };
 		A10000000000000C /* GlassStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000E /* GlassStyles.swift */; };
-		A10000000000000B /* IdleMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000D /* IdleMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,7 +43,6 @@
 		A200000000000010 /* MenuControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuControls.swift; sourceTree = "<group>"; };
 		A20000000000000F /* NativeGlassBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeGlassBridge.swift; sourceTree = "<group>"; };
 		A20000000000000E /* GlassStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassStyles.swift; sourceTree = "<group>"; };
-		A20000000000000D /* IdleMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleMonitor.swift; sourceTree = "<group>"; };
 		A20000000000000C /* LookAway.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LookAway.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -104,7 +102,6 @@
 				A200000000000004 /* TimerEngine.swift */,
 				A200000000000005 /* MicrophoneMonitor.swift */,
 				A200000000000006 /* SleepWakeMonitor.swift */,
-				A20000000000000D /* IdleMonitor.swift */,
 				A200000000000012 /* MenuBarWindowDismisser.swift */,
 				A200000000000013 /* BreakInputShield.swift */,
 				A200000000000007 /* LaunchAtLoginManager.swift */,
@@ -202,7 +199,6 @@
 				A100000000000008 /* MenuBarView.swift in Sources */,
 				A100000000000009 /* BreakOverlayView.swift in Sources */,
 				A10000000000000A /* BreakOverlayController.swift in Sources */,
-				A10000000000000B /* IdleMonitor.swift in Sources */,
 				A10000000000000C /* GlassStyles.swift in Sources */,
 				A10000000000000D /* NativeGlassBridge.swift in Sources */,
 				A10000000000000E /* MenuControls.swift in Sources */,

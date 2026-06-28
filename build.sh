@@ -39,7 +39,6 @@ swiftc \
   "$ROOT/LookAway/Services/TimerEngine.swift" \
   "$ROOT/LookAway/Services/MicrophoneMonitor.swift" \
   "$ROOT/LookAway/Services/SleepWakeMonitor.swift" \
-  "$ROOT/LookAway/Services/IdleMonitor.swift" \
   "$ROOT/LookAway/Services/MenuBarWindowDismisser.swift" \
   "$ROOT/LookAway/Services/BreakInputShield.swift" \
   "$ROOT/LookAway/Services/LaunchAtLoginManager.swift" \

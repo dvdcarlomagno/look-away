@@ -8,7 +8,6 @@ final class AppViewModel: ObservableObject {
     let timerEngine: TimerEngine
     let microphoneMonitor: MicrophoneMonitor
     let sleepWakeMonitor: SleepWakeMonitor
-    let idleMonitor: IdleMonitor
     let breakOverlayController: BreakOverlayController
 
     private var cancellables = Set<AnyCancellable>()
@@ -18,14 +17,12 @@ final class AppViewModel: ObservableObject {
         timerEngine = TimerEngine(config: configManager.config)
         microphoneMonitor = MicrophoneMonitor()
         sleepWakeMonitor = SleepWakeMonitor()
-        idleMonitor = IdleMonitor()
         breakOverlayController = BreakOverlayController()
 
         breakOverlayController.bind(to: timerEngine)
         breakOverlayController.installObservers()
 
         LaunchAtLoginManager.syncWithConfig(configManager.config.launchAtLogin)
-        idleMonitor.updateThreshold(configManager.config.idlePauseSeconds.map { TimeInterval($0) })
 
         bind()
 
@@ -40,20 +37,17 @@ final class AppViewModel: ObservableObject {
         configManager.$config
             .sink { [weak self] config in
                 self?.timerEngine.applyConfig(config)
-                self?.idleMonitor.updateThreshold(config.idlePauseSeconds.map { TimeInterval($0) })
             }
             .store(in: &cancellables)
 
-        Publishers.CombineLatest3(
+        Publishers.CombineLatest(
             microphoneMonitor.$isMicActive,
-            sleepWakeMonitor.$isSystemPaused,
-            idleMonitor.$isIdle
+            sleepWakeMonitor.$isSystemPaused
         )
-        .sink { [weak self] micActive, systemPaused, userIdle in
+        .sink { [weak self] micActive, systemPaused in
             self?.timerEngine.handleExternalPause(
                 micActive: micActive,
-                systemPaused: systemPaused,
-                userIdle: userIdle
+                systemPaused: systemPaused
             )
         }
         .store(in: &cancellables)
@@ -67,8 +61,7 @@ final class AppViewModel: ObservableObject {
         timerEngine.setManualPause(!timerEngine.isManuallyPaused)
         timerEngine.handleExternalPause(
             micActive: microphoneMonitor.isMicActive,
-            systemPaused: sleepWakeMonitor.isSystemPaused,
-            userIdle: idleMonitor.isIdle
+            systemPaused: sleepWakeMonitor.isSystemPaused
         )
     }
 
@@ -76,8 +69,7 @@ final class AppViewModel: ObservableObject {
         timerEngine.restartTimer()
         timerEngine.handleExternalPause(
             micActive: microphoneMonitor.isMicActive,
-            systemPaused: sleepWakeMonitor.isSystemPaused,
-            userIdle: idleMonitor.isIdle
+            systemPaused: sleepWakeMonitor.isSystemPaused
         )
     }
 
@@ -243,16 +235,6 @@ struct MenuBarView: View {
 
             sectionLabel("Behavior")
 
-            if draftConfig.idlePauseSeconds != nil {
-                ConfigNumberRow(
-                    title: "Idle threshold",
-                    subtitle: "Seconds without input",
-                    value: idleSecondsBinding,
-                    range: 10...3600,
-                    unit: "s"
-                )
-            }
-
             ConfigNumberRow(
                 title: "Skip penalty",
                 subtitle: "Extra minutes on next break",
@@ -281,12 +263,6 @@ struct MenuBarView: View {
 
     private var footer: some View {
         VStack(spacing: 6) {
-            ConfigToggleRow(
-                title: "Pause when idle",
-                subtitle: "Stop timer after inactivity",
-                isOn: idlePauseEnabledBinding
-            )
-
             ConfigToggleRow(
                 title: "Launch at login",
                 subtitle: "Start automatically",
@@ -351,24 +327,6 @@ struct MenuBarView: View {
         Binding(
             get: { draftConfig.allowEmergencyExit },
             set: { newValue in updateDraft { $0.allowEmergencyExit = newValue } }
-        )
-    }
-
-    private var idlePauseEnabledBinding: Binding<Bool> {
-        Binding(
-            get: { draftConfig.idlePauseSeconds != nil },
-            set: { enabled in
-                updateDraft { config in
-                    config.idlePauseSeconds = enabled ? (config.idlePauseSeconds ?? 120) : nil
-                }
-            }
-        )
-    }
-
-    private var idleSecondsBinding: Binding<Int> {
-        Binding(
-            get: { draftConfig.idlePauseSeconds ?? 120 },
-            set: { newValue in updateDraft { $0.idlePauseSeconds = newValue } }
         )
     }
 

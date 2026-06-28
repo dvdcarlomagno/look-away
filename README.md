@@ -15,7 +15,6 @@ A native macOS menu bar app that reminds you to step away from the screen on a r
 - Break overlay hardening — shielding window level, blocked shortcuts (⌘Q, ⌘W, ⌘Tab, Esc), menu bar disabled during breaks
 - Skips breaks while the microphone is in use (calls/meetings)
 - Pauses during sleep, screen lock, and manual pause
-- Optional idle detection — pause the timer when you step away from the keyboard
 - Launch at login (toggle in menu bar)
 - Pre-break warning notification (optional, off by default)
 - Native Liquid Glass UI on macOS 26 (via runtime `NSGlassEffectView`; falls back to materials on older macOS)
@@ -70,7 +69,6 @@ On first launch, the app creates `~/.config/look-away/config.json` with defaults
   "preBreakWarningMinutes": 0,
   "skipPenaltyMinutes": 5,
   "allowEmergencyExit": true,
-  "idlePauseSeconds": null,
   "launchAtLogin": true
 }
 ```
@@ -88,7 +86,6 @@ Copy values from [`config.example.json`](config.example.json) if you prefer to s
 | `preBreakWarningMinutes` | `0` | Minutes before break to notify (`0` = off) |
 | `skipPenaltyMinutes` | `5` | Extra minutes added to the next break after an early skip (`0` = off) |
 | `allowEmergencyExit` | `true` | Show **Emergency exit…** link on the break screen |
-| `idlePauseSeconds` | `null` | Optional idle pause (`null` = disabled) |
 | `launchAtLogin` | `true` | Register app at login |
 
 Edit the file while the app is running—it reloads automatically. Changes made in the menu bar settings panel write to the same file immediately.
@@ -98,8 +95,8 @@ Edit the file while the app is running—it reloads automatically. Changes made 
 - **Pause / Resume** — manual timer pause (single tap)
 - **Restart** — hold 5 seconds to reset the work timer; during a break, same hold ends the break early (streak + penalty apply)
 - **Break / Skip** — start a break, or hold **Skip** for 5 seconds during a break to end early
-- **Settings** — edit intervals, skip penalty, emergency exit, idle threshold; reveal `config.json`
-- **Pause when idle** / **Launch at login** — full-width toggles at the bottom of the panel
+- **Settings** — edit intervals, skip penalty, emergency exit; reveal `config.json`
+- **Launch at login** — full-width toggle at the bottom of the panel
 - **Quit** — disabled while a break is active
 
 The menu bar panel closes automatically when a break starts. The menu bar icon is dimmed and disabled during breaks.
@@ -126,7 +123,6 @@ LookAwayApp (MenuBarExtra)
             ├── TimerEngine             → work / break / pause phases, streak & penalty
             ├── MicrophoneMonitor       → skip breaks during calls
             ├── SleepWakeMonitor        → pause on sleep / lock
-            ├── IdleMonitor             → optional idle pause
             ├── LaunchAtLoginManager
             └── BreakOverlayController  → full-screen NSPanel per display
                     └── BreakInputShield → keyboard shortcut blocking during breaks
@@ -181,4 +177,4 @@ This project is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Acknowledgments
 
-Inspired by the need for a simple, native macOS break timer that respects calls, sleep, and idle time without cloud accounts or subscriptions.
+Inspired by the need for a simple, native macOS break timer that respects calls and sleep without cloud accounts or subscriptions.

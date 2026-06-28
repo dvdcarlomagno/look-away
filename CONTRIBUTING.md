@@ -35,7 +35,7 @@ open build/LookAway.app
 |------|---------|
 | `LookAway/LookAwayApp.swift` | App entry point, menu bar extra |
 | `LookAway/Models/` | Data models (`AppConfig`, `BreakStats`) |
-| `LookAway/Services/` | Timer, config, monitors (mic, idle, sleep), launch-at-login, input shield |
+| `LookAway/Services/` | Timer, config, monitors (mic, sleep), launch-at-login, input shield |
 | `LookAway/Views/` | SwiftUI UI (menu bar panel, break overlay, hold-to-confirm controls) |
 | `LookAway/Controllers/` | `NSPanel` overlay controller for multi-display breaks |
 | `scripts/` | App icon generation |

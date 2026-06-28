@@ -179,7 +179,7 @@ final class TimerEngine: ObservableObject {
         if tickTimer == nil { startTicking() }
     }
 
-    func handleExternalPause(micActive: Bool, systemPaused: Bool, userIdle: Bool = false) {
+    func handleExternalPause(micActive: Bool, systemPaused: Bool) {
         if phase == .onBreak { return }
 
         let newDetail: String
@@ -189,8 +189,6 @@ final class TimerEngine: ObservableObject {
             newDetail = "Paused — system asleep"
         } else if isManuallyPaused {
             newDetail = "Paused manually"
-        } else if userIdle {
-            newDetail = "Paused — idle"
         } else {
             newDetail = ""
         }
@@ -202,7 +200,7 @@ final class TimerEngine: ObservableObject {
             }
         }
 
-        reevaluatePhase(micActive: micActive, systemPaused: systemPaused, userIdle: userIdle)
+        reevaluatePhase(micActive: micActive, systemPaused: systemPaused)
     }
 
     func confirmEndBreakEarly() {
@@ -371,14 +369,13 @@ final class TimerEngine: ObservableObject {
         persistBreakStats()
     }
 
-    private func reevaluatePhase(micActive: Bool? = nil, systemPaused: Bool? = nil, userIdle: Bool? = nil) {
+    private func reevaluatePhase(micActive: Bool? = nil, systemPaused: Bool? = nil) {
         let mic = micActive ?? MicrophoneMonitor.checkMicrophoneInUse()
         let asleep = systemPaused ?? false
-        let idle = userIdle ?? false
 
         if phase == .onBreak { return }
 
-        let shouldPause = isManuallyPaused || mic || asleep || idle
+        let shouldPause = isManuallyPaused || mic || asleep
 
         if shouldPause {
             if phase != .paused {

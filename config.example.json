@@ -1,6 +1,5 @@
 {
   "breakDurationMinutes": 15,
-  "idlePauseSeconds": null,
   "launchAtLogin": true,
   "preBreakWarningMinutes": 0,
   "skipPenaltyMinutes": 5,
