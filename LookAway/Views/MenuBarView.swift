@@ -1,0 +1,325 @@
+import AppKit
+import Combine
+import SwiftUI
+
+@MainActor
+final class AppViewModel: ObservableObject {
+    let configManager: ConfigManager
+    let timerEngine: TimerEngine
+    let microphoneMonitor: MicrophoneMonitor
+    let sleepWakeMonitor: SleepWakeMonitor
+    let idleMonitor: IdleMonitor
+    let breakOverlayController: BreakOverlayController
+
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        configManager = ConfigManager()
+        timerEngine = TimerEngine(config: configManager.config)
+        microphoneMonitor = MicrophoneMonitor()
+        sleepWakeMonitor = SleepWakeMonitor()
+        idleMonitor = IdleMonitor()
+        breakOverlayController = BreakOverlayController()
+
+        breakOverlayController.bind(to: timerEngine)
+        breakOverlayController.installObservers()
+
+        LaunchAtLoginManager.syncWithConfig(configManager.config.launchAtLogin)
+        idleMonitor.updateThreshold(configManager.config.idlePauseSeconds.map { TimeInterval($0) })
+
+        bind()
+
+        configManager.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func bind() {
+        configManager.$config
+            .sink { [weak self] config in
+                self?.timerEngine.applyConfig(config)
+                self?.idleMonitor.updateThreshold(config.idlePauseSeconds.map { TimeInterval($0) })
+            }
+            .store(in: &cancellables)
+
+        Publishers.CombineLatest3(
+            microphoneMonitor.$isMicActive,
+            sleepWakeMonitor.$isSystemPaused,
+            idleMonitor.$isIdle
+        )
+        .sink { [weak self] micActive, systemPaused, userIdle in
+            self?.timerEngine.handleExternalPause(
+                micActive: micActive,
+                systemPaused: systemPaused,
+                userIdle: userIdle
+            )
+        }
+        .store(in: &cancellables)
+    }
+
+    var launchAtLogin: Bool {
+        LaunchAtLoginManager.isEnabled
+    }
+
+    func togglePause() {
+        timerEngine.setManualPause(!timerEngine.isManuallyPaused)
+        timerEngine.handleExternalPause(
+            micActive: microphoneMonitor.isMicActive,
+            systemPaused: sleepWakeMonitor.isSystemPaused,
+            userIdle: idleMonitor.isIdle
+        )
+    }
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        guard enabled != LaunchAtLoginManager.isEnabled else { return }
+        if LaunchAtLoginManager.setEnabled(enabled) {
+            configManager.update { $0.launchAtLogin = enabled }
+        }
+    }
+
+    func quit() {
+        NSApplication.shared.terminate(nil)
+    }
+}
+
+struct MenuBarView: View {
+    @ObservedObject var viewModel: AppViewModel
+    @ObservedObject var timerEngine: TimerEngine
+    @State private var showsSettings = false
+    @State private var draftConfig: AppConfig
+
+    init(viewModel: AppViewModel, timerEngine: TimerEngine) {
+        self.viewModel = viewModel
+        self.timerEngine = timerEngine
+        _draftConfig = State(initialValue: viewModel.configManager.config)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            compactHeader
+
+            quickActions
+
+            if showsSettings {
+                settingsPanel
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            footer
+        }
+        .padding(12)
+        .frame(width: showsSettings ? 320 : 248)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(Color.clear)
+        .animation(.smooth(duration: 0.22), value: showsSettings)
+        .onChange(of: viewModel.configManager.config) { _, newValue in
+            draftConfig = newValue
+        }
+    }
+
+    private var compactHeader: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(timerEngine.displayTime)
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+
+                Text(timerEngine.phaseDisplayName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if !timerEngine.statusDetail.isEmpty {
+                    Text(timerEngine.statusDetail)
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if timerEngine.phase == .onBreak {
+                LookAwayStatusChip(text: "Break", tint: LookAwayBrand.pink)
+            } else if timerEngine.phase == .paused {
+                LookAwayStatusChip(text: "Paused", tint: .orange)
+            }
+        }
+    }
+
+    private var quickActions: some View {
+        HStack(spacing: 6) {
+            menuButton(
+                title: timerEngine.isManuallyPaused ? "Resume" : "Pause",
+                symbol: timerEngine.isManuallyPaused ? "play.fill" : "pause.fill",
+                centered: true
+            ) {
+                viewModel.togglePause()
+            }
+
+            if timerEngine.phase == .onBreak {
+                menuButton(title: "Skip", symbol: "forward.end.fill", centered: true) {
+                    viewModel.timerEngine.skipBreak()
+                }
+            } else {
+                menuButton(title: "Break", symbol: "cup.and.saucer.fill", centered: true) {
+                    viewModel.timerEngine.startBreakNow()
+                }
+            }
+        }
+    }
+
+    private var settingsPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Intervals")
+
+            ConfigNumberRow(
+                title: "Work duration",
+                subtitle: "Time before a break",
+                value: workMinutesBinding,
+                range: 1...(24 * 60),
+                unit: "m"
+            )
+
+            ConfigNumberRow(
+                title: "Break duration",
+                subtitle: "Rest overlay length",
+                value: breakMinutesBinding,
+                range: 1...180,
+                unit: "m"
+            )
+
+            ConfigNumberRow(
+                title: "Pre-break warning",
+                subtitle: "0 turns this off",
+                value: warningMinutesBinding,
+                range: 0...60,
+                unit: "m"
+            )
+
+            sectionLabel("Behavior")
+
+            if draftConfig.idlePauseSeconds != nil {
+                ConfigNumberRow(
+                    title: "Idle threshold",
+                    subtitle: "Seconds without input",
+                    value: idleSecondsBinding,
+                    range: 10...3600,
+                    unit: "s"
+                )
+            }
+
+            Button {
+                viewModel.configManager.openConfigFile()
+            } label: {
+                Label("Reveal config.json", systemImage: "doc.text")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 2)
+        }
+    }
+
+    private var footer: some View {
+        VStack(spacing: 6) {
+            ConfigToggleRow(
+                title: "Pause when idle",
+                subtitle: "Stop timer after inactivity",
+                isOn: idlePauseEnabledBinding
+            )
+
+            ConfigToggleRow(
+                title: "Launch at login",
+                subtitle: "Start automatically",
+                isOn: Binding(
+                    get: { viewModel.launchAtLogin },
+                    set: { viewModel.setLaunchAtLogin($0) }
+                )
+            )
+
+            Button {
+                showsSettings.toggle()
+            } label: {
+                Label(
+                    showsSettings ? "Hide settings" : "Settings",
+                    systemImage: showsSettings ? "chevron.up" : "chevron.down"
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(MenuActionButtonStyle())
+
+            Button {
+                viewModel.quit()
+            } label: {
+                Label("Quit", systemImage: "power")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(MenuActionButtonStyle(role: .destructive))
+            .keyboardShortcut("q")
+        }
+    }
+
+    private var workMinutesBinding: Binding<Int> {
+        Binding(
+            get: { draftConfig.workDurationMinutes },
+            set: { newValue in updateDraft { $0.workDurationMinutes = newValue } }
+        )
+    }
+
+    private var breakMinutesBinding: Binding<Int> {
+        Binding(
+            get: { draftConfig.breakDurationMinutes },
+            set: { newValue in updateDraft { $0.breakDurationMinutes = newValue } }
+        )
+    }
+
+    private var warningMinutesBinding: Binding<Int> {
+        Binding(
+            get: { draftConfig.preBreakWarningMinutes },
+            set: { newValue in updateDraft { $0.preBreakWarningMinutes = newValue } }
+        )
+    }
+
+    private var idlePauseEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { draftConfig.idlePauseSeconds != nil },
+            set: { enabled in
+                updateDraft { config in
+                    config.idlePauseSeconds = enabled ? (config.idlePauseSeconds ?? 120) : nil
+                }
+            }
+        )
+    }
+
+    private var idleSecondsBinding: Binding<Int> {
+        Binding(
+            get: { draftConfig.idlePauseSeconds ?? 120 },
+            set: { newValue in updateDraft { $0.idlePauseSeconds = newValue } }
+        )
+    }
+
+    private func updateDraft(_ transform: (inout AppConfig) -> Void) {
+        var copy = draftConfig
+        transform(&copy)
+        draftConfig = copy
+        viewModel.configManager.replace(with: copy)
+    }
+
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .padding(.horizontal, 2)
+            .padding(.top, 2)
+    }
+
+    private func menuButton(title: String, symbol: String, centered: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(MenuActionButtonStyle(centered: centered))
+    }
+}

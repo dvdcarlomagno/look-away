@@ -1,0 +1,7 @@
+{
+  "breakDurationMinutes": 15,
+  "idlePauseSeconds": null,
+  "launchAtLogin": true,
+  "preBreakWarningMinutes": 0,
+  "workDurationMinutes": 120
+}
