@@ -114,9 +114,9 @@ struct TimerHeroCard: View {
     private var accent: Color {
         switch engine.phase {
         case .working:
-            return .blue
+            return LookAwayBrand.pink
         case .preBreakWarning:
-            return .orange
+            return .red
         case .onBreak:
             return .mint
         case .paused:

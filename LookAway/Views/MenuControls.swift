@@ -115,7 +115,7 @@ struct StreakBadge: View {
         HStack(spacing: compact ? 3 : 4) {
             Image(systemName: "flame.fill")
                 .font(.system(size: compact ? 10 : 12, weight: .semibold))
-                .foregroundStyle(count > 0 ? Color.orange : Color.secondary.opacity(0.5))
+                .foregroundStyle(count > 0 ? LookAwayBrand.pink : Color.secondary.opacity(0.5))
 
             Text("\(count)")
                 .font(.system(size: compact ? 11 : 13, weight: .semibold, design: .rounded))

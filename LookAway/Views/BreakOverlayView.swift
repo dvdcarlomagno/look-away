@@ -97,7 +97,7 @@ struct BreakOverlayView: View {
                 if engine.appliedPenaltyMinutes > 0 {
                     Text("+\(engine.appliedPenaltyMinutes) min from skipped break")
                         .font(.caption2)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.red)
                 }
             }
             .frame(maxWidth: .infinity)

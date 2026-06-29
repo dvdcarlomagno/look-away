@@ -141,7 +141,7 @@ struct MenuBarView: View {
                 if !timerEngine.statusDetail.isEmpty {
                     Text(timerEngine.statusDetail)
                         .font(.caption2)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
@@ -154,7 +154,7 @@ struct MenuBarView: View {
                 if timerEngine.phase == .onBreak {
                     LookAwayStatusChip(text: "Break", tint: LookAwayBrand.pink)
                 } else if timerEngine.phase == .paused {
-                    LookAwayStatusChip(text: "Paused", tint: .orange)
+                    LookAwayStatusChip(text: "Paused", tint: .secondary)
                 }
             }
         }
@@ -198,7 +198,7 @@ struct MenuBarView: View {
             if timerEngine.pendingPenaltyMinutes > 0 && timerEngine.phase != .onBreak {
                 Text("Next break +\(timerEngine.pendingPenaltyMinutes) min from skip")
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 2)
             }
