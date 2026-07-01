@@ -30,6 +30,7 @@ final class TimerEngine: ObservableObject {
     /// High-precision countdown; UI reads `remainingSeconds` at most once per second.
     private var internalRemaining: TimeInterval = 0
     private var lastPublishedDisplaySecond: Int = -1
+    private var wasSystemPaused = false
 
     var menuBarLabel: String {
         switch phase {
@@ -179,14 +180,19 @@ final class TimerEngine: ObservableObject {
         if tickTimer == nil { startTicking() }
     }
 
-    func handleExternalPause(micActive: Bool, systemPaused: Bool) {
-        if phase == .onBreak { return }
+    func handleExternalPause(micActive: Bool, systemPaused: Bool, systemPauseDetail: String = "") {
+        let systemJustResumed = wasSystemPaused && !systemPaused
+        wasSystemPaused = systemPaused
+
+        if systemJustResumed {
+            restartWorkSessionAfterAway()
+        }
 
         let newDetail: String
         if micActive {
             newDetail = "Paused — call active"
         } else if systemPaused {
-            newDetail = "Paused — system asleep"
+            newDetail = systemPauseDetail.isEmpty ? "Paused — away from screen" : systemPauseDetail
         } else if isManuallyPaused {
             newDetail = "Paused manually"
         } else {
@@ -201,6 +207,20 @@ final class TimerEngine: ObservableObject {
         }
 
         reevaluatePhase(micActive: micActive, systemPaused: systemPaused)
+    }
+
+    /// Resets the work interval after the user returns from display off, sleep, or lock.
+    private func restartWorkSessionAfterAway() {
+        if phase == .onBreak {
+            appliedPenaltyMinutes = 0
+            NotificationCenter.default.post(name: .lookAwayBreakEnded, object: nil)
+        }
+
+        phase = .working
+        internalRemaining = config.workDurationSeconds
+        preBreakWarningSent = false
+        statusDetail = ""
+        publishRemainingIfDisplayChanged(force: true)
     }
 
     func confirmEndBreakEarly() {
@@ -373,7 +393,14 @@ final class TimerEngine: ObservableObject {
         let mic = micActive ?? MicrophoneMonitor.checkMicrophoneInUse()
         let asleep = systemPaused ?? false
 
-        if phase == .onBreak { return }
+        if phase == .onBreak {
+            if asleep {
+                stopTicking()
+            } else if tickTimer == nil {
+                startTicking()
+            }
+            return
+        }
 
         let shouldPause = isManuallyPaused || mic || asleep
 
@@ -395,6 +422,8 @@ final class TimerEngine: ObservableObject {
                 syncMenuBarPresentation(force: true)
                 if tickTimer == nil { startTicking() }
             }
+        } else if tickTimer == nil {
+            startTicking()
         }
     }
 

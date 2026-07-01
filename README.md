@@ -14,7 +14,7 @@ A native macOS menu bar app that reminds you to step away from the screen on a r
 - Full-screen blur break overlay on all monitors, centered content, keyboard focus captured
 - Break overlay hardening — shielding window level, blocked shortcuts (⌘Q, ⌘W, ⌘Tab, Esc), menu bar disabled during breaks
 - Skips breaks while the microphone is in use (calls/meetings)
-- Pauses during sleep, screen lock, and manual pause
+- Pauses while the display is off, the Mac is asleep, or the screen is locked; **restarts the work timer** when you return (manual pause still resumes where you left off)
 - Launch at login (toggle in menu bar)
 - Pre-break warning notification (optional, off by default)
 - Native Liquid Glass UI on macOS 26 (via runtime `NSGlassEffectView`; falls back to materials on older macOS)
@@ -122,7 +122,7 @@ LookAwayApp (MenuBarExtra)
             ├── ConfigManager           → ~/.config/look-away/config.json
             ├── TimerEngine             → work / break / pause phases, streak & penalty
             ├── MicrophoneMonitor       → skip breaks during calls
-            ├── SleepWakeMonitor        → pause on sleep / lock
+            ├── SleepWakeMonitor        → pause while away; restart work timer on return
             ├── LaunchAtLoginManager
             └── BreakOverlayController  → full-screen NSPanel per display
                     └── BreakInputShield → keyboard shortcut blocking during breaks

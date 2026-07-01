@@ -40,14 +40,16 @@ final class AppViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        Publishers.CombineLatest(
+        Publishers.CombineLatest3(
             microphoneMonitor.$isMicActive,
-            sleepWakeMonitor.$isSystemPaused
+            sleepWakeMonitor.$isSystemPaused,
+            sleepWakeMonitor.$pauseDetail
         )
-        .sink { [weak self] micActive, systemPaused in
+        .sink { [weak self] micActive, systemPaused, systemPauseDetail in
             self?.timerEngine.handleExternalPause(
                 micActive: micActive,
-                systemPaused: systemPaused
+                systemPaused: systemPaused,
+                systemPauseDetail: systemPauseDetail
             )
         }
         .store(in: &cancellables)
@@ -61,7 +63,8 @@ final class AppViewModel: ObservableObject {
         timerEngine.setManualPause(!timerEngine.isManuallyPaused)
         timerEngine.handleExternalPause(
             micActive: microphoneMonitor.isMicActive,
-            systemPaused: sleepWakeMonitor.isSystemPaused
+            systemPaused: sleepWakeMonitor.isSystemPaused,
+            systemPauseDetail: sleepWakeMonitor.pauseDetail
         )
     }
 
@@ -69,7 +72,8 @@ final class AppViewModel: ObservableObject {
         timerEngine.restartTimer()
         timerEngine.handleExternalPause(
             micActive: microphoneMonitor.isMicActive,
-            systemPaused: sleepWakeMonitor.isSystemPaused
+            systemPaused: sleepWakeMonitor.isSystemPaused,
+            systemPauseDetail: sleepWakeMonitor.pauseDetail
         )
     }
 
