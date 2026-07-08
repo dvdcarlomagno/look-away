@@ -3,7 +3,7 @@ import CoreGraphics
 import Foundation
 
 /// Tracks macOS states where the user is not actively at the screen.
-/// While away, the timer pauses; when the screen is active again, the work timer restarts.
+/// While away, the timer pauses; a long return (≥ break duration) restarts the work timer.
 @MainActor
 final class SleepWakeMonitor: ObservableObject {
     @Published private(set) var isSystemPaused = false

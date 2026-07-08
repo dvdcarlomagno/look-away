@@ -9,6 +9,7 @@ final class AppViewModel: ObservableObject {
     let microphoneMonitor: MicrophoneMonitor
     let sleepWakeMonitor: SleepWakeMonitor
     let breakOverlayController: BreakOverlayController
+    private let notificationHandler = NotificationHandler()
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -21,6 +22,9 @@ final class AppViewModel: ObservableObject {
 
         breakOverlayController.bind(to: timerEngine)
         breakOverlayController.installObservers()
+
+        notificationHandler.timerEngine = timerEngine
+        notificationHandler.install()
 
         LaunchAtLoginManager.syncWithConfig(configManager.config.launchAtLogin)
 
@@ -193,6 +197,14 @@ struct MenuBarView: View {
                     centered: true,
                     onConfirm: { viewModel.timerEngine.abortBreakEarly() }
                 )
+            } else if timerEngine.phase == .preBreakWarning {
+                menuButton(title: "Extend 3 min", symbol: "plus.circle", centered: true) {
+                    viewModel.timerEngine.extendSession()
+                }
+
+                menuButton(title: "Break", symbol: "cup.and.saucer.fill", centered: true) {
+                    viewModel.timerEngine.startBreakNow()
+                }
             } else {
                 menuButton(title: "Break", symbol: "cup.and.saucer.fill", centered: true) {
                     viewModel.timerEngine.startBreakNow()

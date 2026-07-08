@@ -37,6 +37,7 @@ swiftc \
   "$ROOT/LookAway/Models/BreakStats.swift" \
   "$ROOT/LookAway/Services/ConfigManager.swift" \
   "$ROOT/LookAway/Services/TimerEngine.swift" \
+  "$ROOT/LookAway/Services/NotificationHandler.swift" \
   "$ROOT/LookAway/Services/MicrophoneMonitor.swift" \
   "$ROOT/LookAway/Services/SleepWakeMonitor.swift" \
   "$ROOT/LookAway/Services/MenuBarWindowDismisser.swift" \

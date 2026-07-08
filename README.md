@@ -13,10 +13,10 @@ A native macOS menu bar app that reminds you to step away from the screen on a r
 - Configurable work and break durations in the menu bar **Settings** panel (saved to `~/.config/look-away/config.json`)
 - Full-screen blur break overlay on all monitors, centered content, keyboard focus captured
 - Break overlay hardening — shielding window level, blocked shortcuts (⌘Q, ⌘W, ⌘Tab, Esc), menu bar disabled during breaks
-- Skips breaks while the microphone is in use (calls/meetings)
-- Pauses while the display is off, the Mac is asleep, or the screen is locked; **restarts the work timer** when you return (manual pause still resumes where you left off)
+- Skips breaks while the microphone is in use (calls/meetings) — checks **all** input devices, not just the system default
+- Pauses while the display is off, the Mac is asleep, or the screen is locked; **resumes** where you left off on a short return, **restarts the work timer** (and counts the break streak) when away time reaches the configured break duration (manual pause always resumes)
 - Launch at login (toggle in menu bar)
-- Pre-break warning notification (optional, off by default)
+- Pre-break warning notification (optional, off by default) with **Extend 3 minutes** action in the notification and menu bar
 - Native Liquid Glass UI on macOS 26 (via runtime `NSGlassEffectView`; falls back to materials on older macOS)
 
 ## Requirements
@@ -93,6 +93,7 @@ Edit the file while the app is running—it reloads automatically. Changes made 
 ## Menu bar controls
 
 - **Pause / Resume** — manual timer pause (single tap)
+- **Extend 3 min** — shown during the pre-break warning; adds 3 minutes to the work session (also available as a notification action)
 - **Restart** — hold 5 seconds to reset the work timer; during a break, same hold ends the break early (streak + penalty apply)
 - **Break / Skip** — start a break, or hold **Skip** for 5 seconds during a break to end early
 - **Settings** — edit intervals, skip penalty, emergency exit; reveal `config.json`
@@ -122,7 +123,7 @@ LookAwayApp (MenuBarExtra)
             ├── ConfigManager           → ~/.config/look-away/config.json
             ├── TimerEngine             → work / break / pause phases, streak & penalty
             ├── MicrophoneMonitor       → skip breaks during calls
-            ├── SleepWakeMonitor        → pause while away; restart work timer on return
+            ├── SleepWakeMonitor        → pause while away; long return restarts work timer
             ├── LaunchAtLoginManager
             └── BreakOverlayController  → full-screen NSPanel per display
                     └── BreakInputShield → keyboard shortcut blocking during breaks
@@ -156,7 +157,7 @@ killall Dock
 
 ## Permissions
 
-- **Microphone usage description** is included so macOS can detect when the mic is active during calls. The app does **not** record audio.
+- **Microphone usage description** is included so macOS can detect when the mic is active during calls. The app does **not** record audio. Call detection scans every audio input device (built-in and external), so a break is deferred even when the active call uses a non-default microphone.
 - **Accessibility** (optional) — granting Look Away Accessibility access in System Settings improves global shortcut blocking during breaks. Local blocking works when the app is frontmost without this permission.
 
 ## Skipping vs completing a break

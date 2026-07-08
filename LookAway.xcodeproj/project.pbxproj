@@ -15,6 +15,7 @@
 		A100000000000003 /* ConfigManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000003 /* ConfigManager.swift */; };
 		A100000000000004 /* TimerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000004 /* TimerEngine.swift */; };
 		A100000000000005 /* MicrophoneMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000005 /* MicrophoneMonitor.swift */; };
+		A100000000000014 /* NotificationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000014 /* NotificationHandler.swift */; };
 		A100000000000006 /* SleepWakeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000006 /* SleepWakeMonitor.swift */; };
 		A100000000000007 /* LaunchAtLoginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000007 /* LaunchAtLoginManager.swift */; };
 		A100000000000008 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000008 /* MenuBarView.swift */; };
@@ -34,6 +35,7 @@
 		A200000000000003 /* ConfigManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigManager.swift; sourceTree = "<group>"; };
 		A200000000000004 /* TimerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerEngine.swift; sourceTree = "<group>"; };
 		A200000000000005 /* MicrophoneMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneMonitor.swift; sourceTree = "<group>"; };
+		A200000000000014 /* NotificationHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationHandler.swift; sourceTree = "<group>"; };
 		A200000000000006 /* SleepWakeMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepWakeMonitor.swift; sourceTree = "<group>"; };
 		A200000000000007 /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
 		A200000000000008 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
@@ -100,6 +102,7 @@
 			children = (
 				A200000000000003 /* ConfigManager.swift */,
 				A200000000000004 /* TimerEngine.swift */,
+				A200000000000014 /* NotificationHandler.swift */,
 				A200000000000005 /* MicrophoneMonitor.swift */,
 				A200000000000006 /* SleepWakeMonitor.swift */,
 				A200000000000012 /* MenuBarWindowDismisser.swift */,
@@ -193,6 +196,7 @@
 				A100000000000013 /* BreakInputShield.swift in Sources */,
 				A100000000000003 /* ConfigManager.swift in Sources */,
 				A100000000000004 /* TimerEngine.swift in Sources */,
+				A100000000000014 /* NotificationHandler.swift in Sources */,
 				A100000000000005 /* MicrophoneMonitor.swift in Sources */,
 				A100000000000006 /* SleepWakeMonitor.swift in Sources */,
 				A100000000000007 /* LaunchAtLoginManager.swift in Sources */,

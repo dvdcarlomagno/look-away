@@ -12,6 +12,8 @@ enum TimerPhase: Equatable {
 
 @MainActor
 final class TimerEngine: ObservableObject {
+    static let sessionExtensionMinutes = 3
+
     @Published private(set) var phase: TimerPhase = .working
     @Published private(set) var remainingSeconds: TimeInterval = 0
     @Published private(set) var isManuallyPaused = false
@@ -31,6 +33,8 @@ final class TimerEngine: ObservableObject {
     private var internalRemaining: TimeInterval = 0
     private var lastPublishedDisplaySecond: Int = -1
     private var wasSystemPaused = false
+    /// Wall-clock start of display off, sleep, or screen lock; cleared on return.
+    private var systemAwayStartedAt: Date?
 
     var menuBarLabel: String {
         switch phase {
@@ -143,6 +147,23 @@ final class TimerEngine: ObservableObject {
         beginBreak()
     }
 
+    /// Adds time to the current work session and leaves the pre-break warning phase.
+    func extendSession() {
+        guard phase == .preBreakWarning || phase == .working else { return }
+
+        internalRemaining += TimeInterval(Self.sessionExtensionMinutes * 60)
+        phase = .working
+        preBreakWarningSent = false
+        statusDetail = ""
+        publishRemainingIfDisplayChanged(force: true)
+        syncMenuBarPresentation(force: true)
+        if tickTimer == nil { startTicking() }
+
+        UNUserNotificationCenter.current().removeDeliveredNotifications(
+            withIdentifiers: [LookAwayNotification.preBreakRequestID]
+        )
+    }
+
     /// Ends the current break early — breaks streak and adds penalty to the next break.
     func abortBreakEarly() {
         guard phase == .onBreak else { return }
@@ -181,12 +202,18 @@ final class TimerEngine: ObservableObject {
     }
 
     func handleExternalPause(micActive: Bool, systemPaused: Bool, systemPauseDetail: String = "") {
+        let systemJustPaused = !wasSystemPaused && systemPaused
         let systemJustResumed = wasSystemPaused && !systemPaused
-        wasSystemPaused = systemPaused
+
+        if systemJustPaused {
+            systemAwayStartedAt = Date()
+        }
 
         if systemJustResumed {
-            restartWorkSessionAfterAway()
+            handleReturnFromSystemAway()
         }
+
+        wasSystemPaused = systemPaused
 
         let newDetail: String
         if micActive {
@@ -209,18 +236,35 @@ final class TimerEngine: ObservableObject {
         reevaluatePhase(micActive: micActive, systemPaused: systemPaused)
     }
 
-    /// Resets the work interval after the user returns from display off, sleep, or lock.
-    private func restartWorkSessionAfterAway() {
-        if phase == .onBreak {
+    /// On return from display off, sleep, or lock: restart only if away time met the break threshold.
+    private func handleReturnFromSystemAway() {
+        defer { systemAwayStartedAt = nil }
+
+        guard let startedAt = systemAwayStartedAt else { return }
+        let awayDuration = Date().timeIntervalSince(startedAt)
+        guard awayDuration >= config.breakDurationSeconds else { return }
+
+        restartWorkSessionAfterLongAway()
+    }
+
+    /// Away long enough to count as a break — restart work, record streak, dismiss overlay if needed.
+    private func restartWorkSessionAfterLongAway() {
+        let wasOnBreak = phase == .onBreak
+
+        if wasOnBreak {
             appliedPenaltyMinutes = 0
-            NotificationCenter.default.post(name: .lookAwayBreakEnded, object: nil)
         }
+
+        recordNaturalCompletion()
 
         phase = .working
         internalRemaining = config.workDurationSeconds
         preBreakWarningSent = false
-        statusDetail = ""
         publishRemainingIfDisplayChanged(force: true)
+
+        if wasOnBreak {
+            NotificationCenter.default.post(name: .lookAwayBreakEnded, object: nil)
+        }
     }
 
     func confirmEndBreakEarly() {
@@ -435,9 +479,10 @@ final class TimerEngine: ObservableObject {
             guard granted else { return }
             let content = UNMutableNotificationContent()
             content.title = "Break starting soon"
-            content.body = "Your look-away break begins in \(Int(self.config.preBreakWarningMinutes)) minute(s)."
+            content.body = "Your look-away break begins in \(Int(self.config.preBreakWarningMinutes)) minute(s). Extend for \(Self.sessionExtensionMinutes) more minutes if you need longer."
+            content.categoryIdentifier = LookAwayNotification.preBreakCategory
             let request = UNNotificationRequest(
-                identifier: "look-away-pre-break",
+                identifier: LookAwayNotification.preBreakRequestID,
                 content: content,
                 trigger: nil
             )
