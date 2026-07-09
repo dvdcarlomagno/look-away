@@ -167,19 +167,8 @@ final class TimerEngine: ObservableObject {
     /// Ends the current break early — breaks streak and adds penalty to the next break.
     func abortBreakEarly() {
         guard phase == .onBreak else { return }
-        recordEarlyAbort(applyPenalty: true)
+        recordEarlyAbort()
         transitionToWorkingAfterBreak()
-    }
-
-    /// Emergency exit — breaks streak but does not add skip penalty to the next break.
-    func abortBreakEmergency() {
-        guard phase == .onBreak else { return }
-        recordEarlyAbort(applyPenalty: false)
-        transitionToWorkingAfterBreak()
-    }
-
-    var allowEmergencyExit: Bool {
-        config.allowEmergencyExit
     }
 
     func skipBreak() {
@@ -425,9 +414,9 @@ final class TimerEngine: ObservableObject {
         persistBreakStats()
     }
 
-    private func recordEarlyAbort(applyPenalty: Bool) {
+    private func recordEarlyAbort() {
         consecutiveBreaks = 0
-        if applyPenalty, config.skipPenaltyMinutes > 0 {
+        if config.skipPenaltyMinutes > 0 {
             pendingPenaltyMinutes += config.skipPenaltyMinutes
         }
         persistBreakStats()

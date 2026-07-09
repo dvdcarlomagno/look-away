@@ -46,7 +46,7 @@ open build/LookAway.app
 | File | Purpose |
 |------|---------|
 | `TimerEngine.swift` | Work/break/pause phases, streak, skip penalty |
-| `BreakOverlayController.swift` | Multi-monitor overlay panels, emergency exit |
+| `BreakOverlayController.swift` | Multi-monitor overlay panels |
 | `BreakInputShield.swift` | Blocks ⌘Q / ⌘W / ⌘Tab / Esc during breaks |
 | `BreakStats.swift` | Streak and pending penalty persistence (`stats.json`) |
 | `MenuBarWindowDismisser.swift` | Closes menu bar window when break starts |
@@ -69,7 +69,6 @@ open build/LookAway.app
    - Timer tick, pause/resume, restart (hold)
    - Break overlay appears centered on all displays
    - Hold **Skip Break** ends break early (streak resets, penalty applied)
-   - **Emergency exit** ends break without penalty
    - Menu bar closes and disables during break
    - Settings persist to `config.json`
 5. Open a PR describing **what** changed and **why**.

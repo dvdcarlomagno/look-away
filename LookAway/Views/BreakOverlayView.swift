@@ -5,7 +5,6 @@ struct BreakOverlayView: View {
     @ObservedObject var engine: TimerEngine
     @ObservedObject var overlayController: BreakOverlayController
     let onEndBreak: () -> Void
-    let onEmergencyExit: () -> Void
 
     private var formattedTime: String {
         let total = Int(max(0, engine.remainingSeconds.rounded()))
@@ -112,15 +111,6 @@ struct BreakOverlayView: View {
                     centered: true,
                     onConfirm: onEndBreak
                 )
-
-                if engine.allowEmergencyExit {
-                    Button("Emergency exit…") {
-                        onEmergencyExit()
-                    }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
             }
         }
         .padding(20)

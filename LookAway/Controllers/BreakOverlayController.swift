@@ -82,9 +82,6 @@ final class BreakOverlayController: ObservableObject {
                 overlayController: self,
                 onEndBreak: { [weak engine] in
                     engine?.abortBreakEarly()
-                },
-                onEmergencyExit: { [weak self, weak engine] in
-                    self?.requestEmergencyExit(engine: engine)
                 }
             )
 
@@ -149,19 +146,6 @@ final class BreakOverlayController: ObservableObject {
             Task { @MainActor in
                 self?.shortcutWarning = nil
             }
-        }
-    }
-
-    private func requestEmergencyExit(engine: TimerEngine?) {
-        let alert = NSAlert()
-        alert.messageText = "Emergency exit?"
-        alert.informativeText = "Your break streak will reset. Unlike Skip Break, no extra time is added to your next break. Use this only when you truly need to leave."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Emergency Exit")
-        alert.addButton(withTitle: "Keep Resting")
-
-        if alert.runModal() == .alertFirstButtonReturn {
-            engine?.abortBreakEmergency()
         }
     }
 

@@ -108,7 +108,7 @@ struct MenuBarView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: MenuPanelMetrics.spacing) {
             compactHeader
 
             quickActions
@@ -120,8 +120,8 @@ struct MenuBarView: View {
 
             footer
         }
-        .padding(12)
-        .frame(width: showsSettings ? 320 : 280)
+        .padding(MenuPanelMetrics.padding)
+        .frame(width: showsSettings ? 300 : 280)
         .fixedSize(horizontal: false, vertical: true)
         .background(Color.clear)
         .animation(.smooth(duration: 0.22), value: showsSettings)
@@ -136,19 +136,19 @@ struct MenuBarView: View {
     }
 
     private var compactHeader: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: MenuPanelMetrics.spacing) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(timerEngine.displayTime)
-                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .font(.system(.title2, design: .rounded, weight: .semibold))
                     .monospacedDigit()
 
                 Text(timerEngine.phaseDisplayName)
-                    .font(.caption)
+                    .font(MenuPanelMetrics.controlFont)
                     .foregroundStyle(.secondary)
 
                 if !timerEngine.statusDetail.isEmpty {
                     Text(timerEngine.statusDetail)
-                        .font(.caption2)
+                        .font(MenuPanelMetrics.controlFont)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -156,7 +156,7 @@ struct MenuBarView: View {
 
             Spacer(minLength: 0)
 
-            HStack(spacing: 8) {
+            HStack(spacing: MenuPanelMetrics.spacing) {
                 StreakBadge(count: timerEngine.consecutiveBreaks, compact: true)
 
                 if timerEngine.phase == .onBreak {
@@ -169,8 +169,8 @@ struct MenuBarView: View {
     }
 
     private var quickActions: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(spacing: MenuPanelMetrics.spacing) {
+            HStack(spacing: MenuPanelMetrics.spacing) {
                 menuButton(
                     title: timerEngine.isManuallyPaused ? "Resume" : "Pause",
                     symbol: timerEngine.isManuallyPaused ? "play.fill" : "pause.fill",
@@ -198,12 +198,14 @@ struct MenuBarView: View {
                     onConfirm: { viewModel.timerEngine.abortBreakEarly() }
                 )
             } else if timerEngine.phase == .preBreakWarning {
-                menuButton(title: "Extend 3 min", symbol: "plus.circle", centered: true) {
-                    viewModel.timerEngine.extendSession()
-                }
+                HStack(spacing: MenuPanelMetrics.spacing) {
+                    menuButton(title: "Extend 3 min", symbol: "plus.circle", centered: true) {
+                        viewModel.timerEngine.extendSession()
+                    }
 
-                menuButton(title: "Break", symbol: "cup.and.saucer.fill", centered: true) {
-                    viewModel.timerEngine.startBreakNow()
+                    menuButton(title: "Break", symbol: "cup.and.saucer.fill", centered: true) {
+                        viewModel.timerEngine.startBreakNow()
+                    }
                 }
             } else {
                 menuButton(title: "Break", symbol: "cup.and.saucer.fill", centered: true) {
@@ -213,24 +215,27 @@ struct MenuBarView: View {
 
             if timerEngine.pendingPenaltyMinutes > 0 && timerEngine.phase != .onBreak {
                 Text("Next break +\(timerEngine.pendingPenaltyMinutes) min from skip")
-                    .font(.caption2)
+                    .font(MenuPanelMetrics.controlFont)
                     .foregroundStyle(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 2)
+                    .padding(.top, 2)
             }
         }
     }
 
     private var settingsPanel: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Intervals")
+        VStack(alignment: .leading, spacing: MenuPanelMetrics.spacing) {
+            sectionLabel("Intervals", isFirst: true)
 
             ConfigNumberRow(
                 title: "Work duration",
                 subtitle: "Time before a break",
                 value: workMinutesBinding,
                 range: 1...(24 * 60),
-                unit: "m"
+                unit: "m",
+                compact: true,
+                showsSubtitle: false
             )
 
             ConfigNumberRow(
@@ -238,38 +243,29 @@ struct MenuBarView: View {
                 subtitle: "Rest overlay length",
                 value: breakMinutesBinding,
                 range: 1...180,
-                unit: "m"
-            )
-
-            ConfigNumberRow(
-                title: "Pre-break warning",
-                subtitle: "0 turns this off",
-                value: warningMinutesBinding,
-                range: 0...60,
-                unit: "m"
+                unit: "m",
+                compact: true,
+                showsSubtitle: false
             )
 
             sectionLabel("Behavior")
 
-            ConfigNumberRow(
-                title: "Skip penalty",
-                subtitle: "Extra minutes on next break",
-                value: skipPenaltyMinutesBinding,
-                range: 0...60,
-                unit: "m"
-            )
-
             ConfigToggleRow(
-                title: "Emergency exit",
-                subtitle: "Show link on break screen",
-                isOn: allowEmergencyExitBinding
+                title: "Launch at login",
+                subtitle: "Start automatically",
+                isOn: Binding(
+                    get: { viewModel.launchAtLogin },
+                    set: { viewModel.setLaunchAtLogin($0) }
+                ),
+                compact: true,
+                showsSubtitle: false
             )
 
             Button {
                 viewModel.configManager.openConfigFile()
             } label: {
                 Label("Reveal config.json", systemImage: "doc.text")
-                    .font(.caption)
+                    .font(MenuPanelMetrics.controlFont)
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -278,16 +274,7 @@ struct MenuBarView: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 6) {
-            ConfigToggleRow(
-                title: "Launch at login",
-                subtitle: "Start automatically",
-                isOn: Binding(
-                    get: { viewModel.launchAtLogin },
-                    set: { viewModel.setLaunchAtLogin($0) }
-                )
-            )
-
+        VStack(spacing: MenuPanelMetrics.spacing) {
             Button {
                 showsSettings.toggle()
             } label: {
@@ -325,27 +312,6 @@ struct MenuBarView: View {
         )
     }
 
-    private var warningMinutesBinding: Binding<Int> {
-        Binding(
-            get: { draftConfig.preBreakWarningMinutes },
-            set: { newValue in updateDraft { $0.preBreakWarningMinutes = newValue } }
-        )
-    }
-
-    private var skipPenaltyMinutesBinding: Binding<Int> {
-        Binding(
-            get: { draftConfig.skipPenaltyMinutes },
-            set: { newValue in updateDraft { $0.skipPenaltyMinutes = newValue } }
-        )
-    }
-
-    private var allowEmergencyExitBinding: Binding<Bool> {
-        Binding(
-            get: { draftConfig.allowEmergencyExit },
-            set: { newValue in updateDraft { $0.allowEmergencyExit = newValue } }
-        )
-    }
-
     private func updateDraft(_ transform: (inout AppConfig) -> Void) {
         var copy = draftConfig
         transform(&copy)
@@ -353,12 +319,12 @@ struct MenuBarView: View {
         viewModel.configManager.replace(with: copy)
     }
 
-    private func sectionLabel(_ title: String) -> some View {
+    private func sectionLabel(_ title: String, isFirst: Bool = false) -> some View {
         Text(title.uppercased())
-            .font(.caption2.weight(.semibold))
+            .font(MenuPanelMetrics.sectionFont)
             .foregroundStyle(.tertiary)
             .padding(.horizontal, 2)
-            .padding(.top, 2)
+            .padding(.top, isFirst ? 0 : MenuPanelMetrics.spacing)
     }
 
     private func menuButton(title: String, symbol: String, centered: Bool = false, action: @escaping () -> Void) -> some View {

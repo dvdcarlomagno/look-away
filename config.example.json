@@ -3,6 +3,5 @@
   "launchAtLogin": true,
   "preBreakWarningMinutes": 0,
   "skipPenaltyMinutes": 5,
-  "allowEmergencyExit": true,
   "workDurationMinutes": 120
 }

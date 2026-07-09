@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @main
@@ -25,13 +26,13 @@ private struct MenuBarLabelView: View {
     @ObservedObject var engine: TimerEngine
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             Image(systemName: engine.menuBarSymbol)
                 .symbolRenderingMode(.hierarchical)
-
             Text(engine.menuBarCompactText)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .monospacedDigit()
         }
+        .accessibilityLabel(engine.menuBarLabel)
     }
 }

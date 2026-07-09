@@ -5,7 +5,6 @@ struct AppConfig: Codable, Equatable {
     var breakDurationMinutes: Int
     var preBreakWarningMinutes: Int
     var skipPenaltyMinutes: Int
-    var allowEmergencyExit: Bool
     var launchAtLogin: Bool
 
     static let defaults = AppConfig(
@@ -13,7 +12,6 @@ struct AppConfig: Codable, Equatable {
         breakDurationMinutes: 15,
         preBreakWarningMinutes: 0,
         skipPenaltyMinutes: 5,
-        allowEmergencyExit: true,
         launchAtLogin: true
     )
 
@@ -22,7 +20,6 @@ struct AppConfig: Codable, Equatable {
         case breakDurationMinutes
         case preBreakWarningMinutes
         case skipPenaltyMinutes
-        case allowEmergencyExit
         case launchAtLogin
     }
 
@@ -31,14 +28,12 @@ struct AppConfig: Codable, Equatable {
         breakDurationMinutes: Int,
         preBreakWarningMinutes: Int,
         skipPenaltyMinutes: Int,
-        allowEmergencyExit: Bool,
         launchAtLogin: Bool
     ) {
         self.workDurationMinutes = workDurationMinutes
         self.breakDurationMinutes = breakDurationMinutes
         self.preBreakWarningMinutes = preBreakWarningMinutes
         self.skipPenaltyMinutes = skipPenaltyMinutes
-        self.allowEmergencyExit = allowEmergencyExit
         self.launchAtLogin = launchAtLogin
     }
 
@@ -48,7 +43,6 @@ struct AppConfig: Codable, Equatable {
         breakDurationMinutes = try container.decode(Int.self, forKey: .breakDurationMinutes)
         preBreakWarningMinutes = try container.decode(Int.self, forKey: .preBreakWarningMinutes)
         skipPenaltyMinutes = try container.decodeIfPresent(Int.self, forKey: .skipPenaltyMinutes) ?? Self.defaults.skipPenaltyMinutes
-        allowEmergencyExit = try container.decodeIfPresent(Bool.self, forKey: .allowEmergencyExit) ?? Self.defaults.allowEmergencyExit
         launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? Self.defaults.launchAtLogin
     }
 

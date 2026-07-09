@@ -15,9 +15,9 @@ struct HoldToConfirmButton: View {
     @State private var isHolding = false
     @State private var holdTimer: Timer?
 
-    private var cornerRadius: CGFloat { compact ? 8 : 10 }
-    private var verticalPadding: CGFloat { compact ? 5 : 9 }
-    private var horizontalPadding: CGFloat { compact ? 10 : 12 }
+    private var cornerRadius: CGFloat { MenuPanelMetrics.cornerRadius }
+    private var verticalPadding: CGFloat { MenuPanelMetrics.controlVerticalPadding }
+    private var horizontalPadding: CGFloat { MenuPanelMetrics.controlHorizontalPadding }
 
     var body: some View {
         Button {
@@ -25,7 +25,7 @@ struct HoldToConfirmButton: View {
         } label: {
             Label(isHolding ? holdingTitle : title, systemImage: systemImage)
                 .frame(maxWidth: .infinity, alignment: centered ? .center : .leading)
-                .font(.system(compact ? .caption : .body, design: .rounded, weight: .medium))
+                .font(MenuPanelMetrics.controlFont)
                 .foregroundStyle(foregroundColor)
                 .padding(.horizontal, horizontalPadding)
                 .padding(.vertical, verticalPadding)
@@ -112,13 +112,13 @@ struct StreakBadge: View {
     var compact: Bool = false
 
     var body: some View {
-        HStack(spacing: compact ? 3 : 4) {
+        HStack(spacing: compact ? 4 : 4) {
             Image(systemName: "flame.fill")
-                .font(.system(size: compact ? 10 : 12, weight: .semibold))
+                .font(.system(size: compact ? MenuPanelMetrics.stepperIconSize : 12, weight: .semibold))
                 .foregroundStyle(count > 0 ? LookAwayBrand.pink : Color.secondary.opacity(0.5))
 
             Text("\(count)")
-                .font(.system(size: compact ? 11 : 13, weight: .semibold, design: .rounded))
+                .font(MenuPanelMetrics.valueFont)
                 .monospacedDigit()
                 .foregroundStyle(count > 0 ? .primary : .secondary)
         }
@@ -132,13 +132,13 @@ struct MenuActionButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(.body, design: .rounded, weight: .medium))
+            .font(MenuPanelMetrics.controlFont)
             .foregroundStyle(foregroundColor)
             .frame(maxWidth: .infinity, alignment: centered ? .center : .leading)
-            .padding(.horizontal, centered ? 8 : 12)
-            .padding(.vertical, 9)
+            .padding(.horizontal, MenuPanelMetrics.controlHorizontalPadding)
+            .padding(.vertical, MenuPanelMetrics.controlVerticalPadding)
             .background(background(isPressed: configuration.isPressed))
-            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius, style: .continuous))
     }
 
     private var foregroundColor: Color {
@@ -152,10 +152,10 @@ struct MenuActionButtonStyle: ButtonStyle {
 
     @ViewBuilder
     private func background(isPressed: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
+        RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius, style: .continuous)
             .fill(Color.primary.opacity(isPressed ? 0.14 : 0.08))
             .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
             }
     }
@@ -167,39 +167,51 @@ struct ConfigNumberRow: View {
     @Binding var value: Int
     let range: ClosedRange<Int>
     let unit: String
+    var compact: Bool = false
+    var showsSubtitle: Bool = true
 
     @State private var textValue: String = ""
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(.body, design: .rounded, weight: .medium))
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+        Group {
+            if compact {
+                HStack(spacing: MenuPanelMetrics.spacing) {
+                    compactTitle
 
-            HStack(spacing: 10) {
-                Spacer(minLength: 0)
-
-                stepperButton(systemName: "minus") {
-                    applyValue(value - step(for: value))
+                    compactStepper
                 }
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(MenuPanelMetrics.controlFont)
+                        Text(subtitle)
+                            .font(MenuPanelMetrics.controlFont)
+                            .foregroundStyle(.secondary)
+                    }
 
-                valueEditor
+                    HStack(spacing: 10) {
+                        Spacer(minLength: 0)
 
-                stepperButton(systemName: "plus") {
-                    applyValue(value + step(for: value))
+                        stepperButton(systemName: "minus") {
+                            applyValue(value - step(for: value))
+                        }
+
+                        valueEditor()
+
+                        stepperButton(systemName: "plus") {
+                            applyValue(value + step(for: value))
+                        }
+
+                        Spacer(minLength: 0)
+                    }
                 }
-
-                Spacer(minLength: 0)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .lookAwaySurface()
+        .padding(.horizontal, MenuPanelMetrics.rowHorizontalPadding)
+        .padding(.vertical, MenuPanelMetrics.rowVerticalPadding)
+        .lookAwaySurface(cornerRadius: MenuPanelMetrics.cornerRadius)
         .onAppear {
             textValue = "\(value)"
         }
@@ -215,25 +227,60 @@ struct ConfigNumberRow: View {
         }
     }
 
-    private var valueEditor: some View {
-        HStack(spacing: 3) {
+    private var compactTitle: some View {
+        Group {
+            if showsSubtitle {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(MenuPanelMetrics.controlFont)
+                    Text(subtitle)
+                        .font(MenuPanelMetrics.controlFont)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            } else {
+                Text(title)
+                    .font(MenuPanelMetrics.controlFont)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var compactStepper: some View {
+        HStack(spacing: MenuPanelMetrics.spacing) {
+            stepperButton(systemName: "minus", size: MenuPanelMetrics.stepperSize) {
+                applyValue(value - step(for: value))
+            }
+
+            valueEditor(compact: true)
+
+            stepperButton(systemName: "plus", size: MenuPanelMetrics.stepperSize) {
+                applyValue(value + step(for: value))
+            }
+        }
+    }
+
+    private func valueEditor(compact: Bool = false) -> some View {
+        HStack(spacing: 4) {
             TextField("", text: $textValue)
                 .textFieldStyle(.plain)
                 .multilineTextAlignment(.center)
                 .frame(width: valueFieldWidth)
+                .font(MenuPanelMetrics.valueFont)
                 .focused($isFocused)
                 .onSubmit(commitTextValue)
 
             Text(unit)
-                .font(.system(.body, design: .rounded, weight: .semibold))
+                .font(MenuPanelMetrics.valueFont)
                 .foregroundStyle(.secondary)
                 .fixedSize()
         }
-        .frame(minWidth: 72)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .frame(minWidth: compact ? 64 : 72)
+        .padding(.horizontal, MenuPanelMetrics.controlHorizontalPadding * 0.75)
+        .padding(.vertical, MenuPanelMetrics.controlVerticalPadding * 0.55)
         .background {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius * 0.8, style: .continuous)
                 .fill(Color.primary.opacity(0.06))
         }
     }
@@ -242,11 +289,11 @@ struct ConfigNumberRow: View {
         max(28, CGFloat(max(2, textValue.count)) * 10)
     }
 
-    private func stepperButton(systemName: String, action: @escaping () -> Void) -> some View {
+    private func stepperButton(systemName: String, size: CGFloat = MenuPanelMetrics.stepperSize, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 11, weight: .bold))
-                .frame(width: 28, height: 28)
+                .font(.system(size: MenuPanelMetrics.stepperIconSize, weight: .bold))
+                .frame(width: size, height: size)
                 .contentShape(Circle())
         }
         .buttonStyle(.borderless)
@@ -278,29 +325,85 @@ struct ConfigNumberRow: View {
     }
 }
 
+struct ConfigSegmentedRow<T: Hashable & Identifiable>: View where T: CaseIterable {
+    let title: String
+    let subtitle: String
+    @Binding var selection: T
+    let options: [T]
+    let label: (T) -> String
+    var compact: Bool = false
+    var showsSubtitle: Bool = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? MenuPanelMetrics.spacing : 8) {
+            Group {
+                if showsSubtitle {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(MenuPanelMetrics.controlFont)
+                        Text(subtitle)
+                            .font(MenuPanelMetrics.controlFont)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(compact ? 1 : nil)
+                    }
+                } else {
+                    Text(title)
+                        .font(MenuPanelMetrics.controlFont)
+                        .lineLimit(1)
+                }
+            }
+
+            Picker("", selection: $selection) {
+                ForEach(options) { option in
+                    Text(label(option)).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .font(MenuPanelMetrics.controlFont)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, MenuPanelMetrics.rowHorizontalPadding)
+        .padding(.vertical, MenuPanelMetrics.rowVerticalPadding)
+        .lookAwaySurface(cornerRadius: MenuPanelMetrics.cornerRadius)
+    }
+}
+
 struct ConfigToggleRow: View {
     let title: String
     let subtitle: String
     @Binding var isOn: Bool
+    var compact: Bool = false
+    var showsSubtitle: Bool = true
 
     var body: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(.body, design: .rounded, weight: .medium))
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+        HStack(spacing: MenuPanelMetrics.spacing) {
+            Group {
+                if showsSubtitle {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(MenuPanelMetrics.controlFont)
+                        Text(subtitle)
+                            .font(MenuPanelMetrics.controlFont)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(compact ? 1 : nil)
+                    }
+                } else {
+                    Text(title)
+                        .font(MenuPanelMetrics.controlFont)
+                        .lineLimit(1)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .controlSize(.regular)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .lookAwaySurface()
+        .padding(.horizontal, MenuPanelMetrics.rowHorizontalPadding)
+        .padding(.vertical, MenuPanelMetrics.rowVerticalPadding)
+        .lookAwaySurface(cornerRadius: MenuPanelMetrics.cornerRadius)
     }
 }
