@@ -39,21 +39,25 @@ final class TimerEngine: ObservableObject {
     var menuBarLabel: String {
         switch phase {
         case .onBreak:
-            return "Break: \(displayTime)"
+            return "Break: \(menuBarDisplayTime)"
         case .paused:
             if statusDetail.contains("call") {
                 return "Call active"
             }
             return "Paused"
         case .preBreakWarning:
-            return "Break soon: \(displayTime)"
+            return "Break soon: \(menuBarDisplayTime)"
         case .working:
-            return "\(displayTime) left"
+            return "\(menuBarDisplayTime) left"
         }
     }
 
     var displayTime: String {
         formattedTime(remainingSeconds)
+    }
+
+    var menuBarDisplayTime: String {
+        formattedMenuBarTime(remainingSeconds)
     }
 
     var phaseDisplayName: String {
@@ -310,7 +314,7 @@ final class TimerEngine: ObservableObject {
         let newText: String
         switch phase {
         case .onBreak, .working, .preBreakWarning:
-            newText = displayTime
+            newText = menuBarDisplayTime
         case .paused:
             newText = statusDetail.contains("call") ? "Call active" : "Paused"
         }
@@ -488,6 +492,19 @@ final class TimerEngine: ObservableObject {
             return String(format: "%d:%02d:%02d", hours, minutes, secs)
         }
         return String(format: "%dm %02ds", minutes, secs)
+    }
+
+    private func formattedMenuBarTime(_ seconds: TimeInterval) -> String {
+        let totalMinutes = Int(ceil(max(0, seconds) / 60))
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        if hours > 0 {
+            if minutes > 0 {
+                return "\(hours)h \(minutes)m"
+            }
+            return "\(hours)h"
+        }
+        return "\(minutes)m"
     }
 }
 
