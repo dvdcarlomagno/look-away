@@ -1,8 +1,26 @@
 import SwiftUI
 
 enum LookAwayBrand {
-    static let pink = Color(red: 1.0, green: 0.42, blue: 0.78)
-    static let pinkSoft = Color(red: 1.0, green: 0.74, blue: 0.90)
+    /// Primary accent — forest green
+    static let forest = Color(red: 0.24, green: 0.45, blue: 0.31)
+    /// Secondary — warm wood brown
+    static let wood = Color(red: 0.55, green: 0.40, blue: 0.28)
+    /// Soft highlight — sage
+    static let sage = Color(red: 0.61, green: 0.72, blue: 0.58)
+    /// Warm off-white for overlays
+    static let cream = Color(red: 0.96, green: 0.94, blue: 0.88)
+    /// Deep forest for gradients
+    static let forestDeep = Color(red: 0.12, green: 0.22, blue: 0.16)
+    /// Warm bark brown for gradients
+    static let bark = Color(red: 0.28, green: 0.20, blue: 0.14)
+
+    /// Legacy alias — use `forest` instead
+    static var pink: Color { forest }
+    static var pinkSoft: Color { sage }
+}
+
+enum LookAwayMetrics {
+    static let holdConfirmDuration: TimeInterval = 11
 }
 
 enum MenuPanelMetrics {
@@ -54,10 +72,10 @@ struct LookAwaySurface: ViewModifier {
         content
             .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.primary.opacity(0.05))
+                    .fill(LookAwayBrand.forest.opacity(0.06))
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
+                            .strokeBorder(LookAwayBrand.forest.opacity(0.12), lineWidth: 0.5)
                     }
             }
     }
@@ -66,5 +84,35 @@ struct LookAwaySurface: ViewModifier {
 extension View {
     func lookAwaySurface(cornerRadius: CGFloat = 10) -> some View {
         modifier(LookAwaySurface(cornerRadius: cornerRadius))
+    }
+}
+
+struct NatureFallbackBackground: View {
+    var body: some View {
+        LinearGradient(
+            colors: [
+                LookAwayBrand.forestDeep,
+                LookAwayBrand.forest.opacity(0.85),
+                LookAwayBrand.bark,
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay {
+            RadialGradient(
+                colors: [LookAwayBrand.sage.opacity(0.22), .clear],
+                center: .topTrailing,
+                startRadius: 40,
+                endRadius: 480
+            )
+        }
+        .overlay {
+            RadialGradient(
+                colors: [LookAwayBrand.wood.opacity(0.18), .clear],
+                center: .bottomLeading,
+                startRadius: 20,
+                endRadius: 420
+            )
+        }
     }
 }

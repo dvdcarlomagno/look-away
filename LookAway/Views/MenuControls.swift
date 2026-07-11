@@ -5,10 +5,11 @@ struct HoldToConfirmButton: View {
     let title: String
     let holdingTitle: String
     let systemImage: String
-    var holdDuration: TimeInterval = 5
+    var holdDuration: TimeInterval = LookAwayMetrics.holdConfirmDuration
     var role: ButtonRole?
     var compact: Bool = false
     var centered: Bool = false
+    var overlayGlass: Bool = false
     let onConfirm: () -> Void
 
     @State private var holdProgress: Double = 0
@@ -29,14 +30,7 @@ struct HoldToConfirmButton: View {
                 .foregroundStyle(foregroundColor)
                 .padding(.horizontal, horizontalPadding)
                 .padding(.vertical, verticalPadding)
-                .background {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color.primary.opacity(isHolding ? 0.12 : 0.08))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
-                        }
-                }
+                .background { buttonBackground }
                 .overlay(alignment: .leading) {
                     GeometryReader { geometry in
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -65,14 +59,37 @@ struct HoldToConfirmButton: View {
     private var foregroundColor: Color {
         switch role {
         case .destructive:
-            return .red
+            return overlayGlass ? Color(red: 1, green: 0.55, blue: 0.52) : .red
         default:
-            return .primary
+            return overlayGlass ? LookAwayBrand.cream : .primary
+        }
+    }
+
+    @ViewBuilder
+    private var buttonBackground: some View {
+        if overlayGlass {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.white.opacity(isHolding ? 0.18 : 0.12))
+                .background {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.24), lineWidth: 0.5)
+                }
+        } else {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.primary.opacity(isHolding ? 0.12 : 0.08))
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
+                }
         }
     }
 
     private var progressFillColor: Color {
-        role == .destructive ? .red : LookAwayBrand.pink
+        role == .destructive ? .red : LookAwayBrand.forest
     }
 
     private func beginHold() {
@@ -115,7 +132,7 @@ struct StreakBadge: View {
         HStack(spacing: compact ? 4 : 4) {
             Image(systemName: "flame.fill")
                 .font(.system(size: compact ? MenuPanelMetrics.stepperIconSize : 12, weight: .semibold))
-                .foregroundStyle(count > 0 ? LookAwayBrand.pink : Color.secondary.opacity(0.5))
+                .foregroundStyle(count > 0 ? LookAwayBrand.wood : Color.secondary.opacity(0.5))
 
             Text("\(count)")
                 .font(MenuPanelMetrics.valueFont)
@@ -366,6 +383,59 @@ struct ConfigSegmentedRow<T: Hashable & Identifiable>: View where T: CaseIterabl
         .padding(.horizontal, MenuPanelMetrics.rowHorizontalPadding)
         .padding(.vertical, MenuPanelMetrics.rowVerticalPadding)
         .lookAwaySurface(cornerRadius: MenuPanelMetrics.cornerRadius)
+    }
+}
+
+struct ConfigSecureFieldRow: View {
+    let title: String
+    let subtitle: String
+    @Binding var text: String
+    var placeholder: String = ""
+    var compact: Bool = false
+    var showsSubtitle: Bool = true
+    var isFocused: FocusState<Bool>.Binding
+    var onCommit: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? MenuPanelMetrics.spacing : 8) {
+            Group {
+                if showsSubtitle {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(MenuPanelMetrics.controlFont)
+                        Text(subtitle)
+                            .font(MenuPanelMetrics.controlFont)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(compact ? 2 : nil)
+                    }
+                } else {
+                    Text(title)
+                        .font(MenuPanelMetrics.controlFont)
+                        .lineLimit(1)
+                }
+            }
+
+            SecureField(placeholder, text: $text)
+                .textFieldStyle(.plain)
+                .font(MenuPanelMetrics.controlFont)
+                .focused(isFocused)
+                .onSubmit(onCommit)
+                .padding(.horizontal, MenuPanelMetrics.controlHorizontalPadding)
+                .padding(.vertical, MenuPanelMetrics.controlVerticalPadding * 0.75)
+                .background {
+                    RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius * 0.8, style: .continuous)
+                        .fill(Color.primary.opacity(0.06))
+                }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, MenuPanelMetrics.rowHorizontalPadding)
+        .padding(.vertical, MenuPanelMetrics.rowVerticalPadding)
+        .lookAwaySurface(cornerRadius: MenuPanelMetrics.cornerRadius)
+        .onChange(of: isFocused.wrappedValue) { _, focused in
+            if !focused {
+                onCommit()
+            }
+        }
     }
 }
 

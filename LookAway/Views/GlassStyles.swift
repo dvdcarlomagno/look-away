@@ -78,47 +78,17 @@ struct GlassActionButtonStyle: ButtonStyle {
     }
 }
 
-struct PhaseProgressRing: View {
-    let progress: Double
-    let symbol: String
-    let tint: Color
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(.quaternary.opacity(0.35), lineWidth: 6)
-
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(
-                    AngularGradient(
-                        colors: [tint.opacity(0.35), tint, tint.opacity(0.85)],
-                        center: .center
-                    ),
-                    style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-
-            Image(systemName: symbol)
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(tint)
-                .symbolRenderingMode(.hierarchical)
-        }
-        .frame(width: 74, height: 74)
-    }
-}
-
 struct TimerHeroCard: View {
     @ObservedObject var engine: TimerEngine
 
     private var accent: Color {
         switch engine.phase {
         case .working:
-            return LookAwayBrand.pink
+            return LookAwayBrand.forest
         case .preBreakWarning:
-            return .red
+            return LookAwayBrand.wood
         case .onBreak:
-            return .mint
+            return LookAwayBrand.sage
         case .paused:
             return .secondary
         }
@@ -126,66 +96,132 @@ struct TimerHeroCard: View {
 
     var body: some View {
         NativeGlassBox(cornerRadius: LookAwayGlass.cardCornerRadius, tint: accent.opacity(0.08)) {
-            HStack(spacing: 16) {
-                PhaseProgressRing(
-                    progress: engine.progressFraction,
-                    symbol: engine.phaseSymbol,
-                    tint: accent
-                )
+            VStack(alignment: .leading, spacing: 4) {
+                Text(engine.phaseDisplayName)
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.secondary)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(engine.phaseDisplayName)
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                Text(engine.displayTime)
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(.primary)
+
+                if !engine.statusDetail.isEmpty {
+                    Text(engine.statusDetail)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-
-                    Text(engine.displayTime)
-                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-
-                    if !engine.statusDetail.isEmpty {
-                        Text(engine.statusDetail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
+                        .lineLimit(2)
                 }
-
-                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
         }
     }
 }
 
+struct BreakLockScreenTimer: View {
+    let time: String
+
+    var body: some View {
+        NativeGlassBox(cornerRadius: 36, tint: Color.white.opacity(0.14)) {
+            Text(time)
+                .font(.system(size: 82, weight: .thin, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            Color.white,
+                            Color.white.opacity(0.92),
+                            Color.white.opacity(0.78),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: Color.white.opacity(0.35), radius: 0, y: 1)
+                .padding(.horizontal, 40)
+                .padding(.vertical, 10)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 36, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.62),
+                            Color.white.opacity(0.18),
+                            Color.white.opacity(0.04),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+                .padding(1)
+        }
+        .shadow(color: .black.opacity(0.28), radius: 24, y: 12)
+    }
+}
+
+struct BreakOverlayStatusChip: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(.caption, design: .rounded, weight: .semibold))
+            .foregroundStyle(LookAwayBrand.cream.opacity(0.92))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background {
+                Capsule()
+                    .fill(Color.white.opacity(0.14))
+                    .background {
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                    }
+                    .overlay {
+                        Capsule()
+                            .strokeBorder(Color.white.opacity(0.28), lineWidth: 0.5)
+                    }
+            }
+    }
+}
+
+struct BreakOverlayStreakBadge: View {
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "flame.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(count > 0 ? LookAwayBrand.cream : LookAwayBrand.cream.opacity(0.45))
+
+            Text("\(count)")
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(LookAwayBrand.cream.opacity(count > 0 ? 0.92 : 0.55))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background {
+            Capsule()
+                .fill(Color.white.opacity(0.12))
+                .background {
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                }
+                .overlay {
+                    Capsule()
+                        .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.5)
+                }
+        }
+        .accessibilityLabel("\(count) consecutive breaks")
+    }
+}
+
 struct AmbientBackdrop: View {
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.08, green: 0.12, blue: 0.22),
-                    Color(red: 0.04, green: 0.08, blue: 0.14),
-                    Color(red: 0.10, green: 0.16, blue: 0.18),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            RadialGradient(
-                colors: [.mint.opacity(0.18), .clear],
-                center: .topLeading,
-                startRadius: 40,
-                endRadius: 420
-            )
-
-            RadialGradient(
-                colors: [.blue.opacity(0.16), .clear],
-                center: .bottomTrailing,
-                startRadius: 20,
-                endRadius: 360
-            )
-        }
-        .ignoresSafeArea()
+        NatureFallbackBackground()
+            .ignoresSafeArea()
     }
 }
 

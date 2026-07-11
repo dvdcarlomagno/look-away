@@ -24,11 +24,11 @@ private let iconSpecs: [IconSpec] = [
     IconSpec(filename: "icon_512x512@2x.png", pixelSize: 1024),
 ]
 
-private func drawBubbleGumGradient(in context: CGContext, rect: CGRect) {
+private func drawNatureGradient(in context: CGContext, rect: CGRect) {
     let colors = [
-        CGColor(red: 1.0, green: 0.36, blue: 0.74, alpha: 1.0),
-        CGColor(red: 1.0, green: 0.56, blue: 0.84, alpha: 1.0),
-        CGColor(red: 1.0, green: 0.74, blue: 0.90, alpha: 1.0),
+        CGColor(red: 0.12, green: 0.22, blue: 0.16, alpha: 1.0),
+        CGColor(red: 0.24, green: 0.45, blue: 0.31, alpha: 1.0),
+        CGColor(red: 0.55, green: 0.40, blue: 0.28, alpha: 1.0),
     ] as CFArray
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     guard let gradient = CGGradient(
@@ -59,7 +59,7 @@ private func renderIcon(pixelSize: Int) -> NSImage {
     let clipPath = NSBezierPath(roundedRect: NSRect(origin: .zero, size: NSSize(width: dimension, height: dimension)), xRadius: cornerRadius, yRadius: cornerRadius)
     clipPath.addClip()
 
-    drawBubbleGumGradient(in: context, rect: rect)
+    drawNatureGradient(in: context, rect: rect)
 
     let pointSize = max(8, dimension * 0.44)
     let symbolConfig = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)

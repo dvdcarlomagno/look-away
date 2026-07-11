@@ -24,6 +24,9 @@
 		A10000000000000E /* MenuControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000010 /* MenuControls.swift */; };
 		A10000000000000D /* NativeGlassBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000F /* NativeGlassBridge.swift */; };
 		A10000000000000C /* GlassStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000E /* GlassStyles.swift */; };
+		A100000000000015 /* LookAwayDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000015 /* LookAwayDesign.swift */; };
+		A100000000000016 /* SecretsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000016 /* SecretsManager.swift */; };
+		A100000000000017 /* NatureBackgroundService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000017 /* NatureBackgroundService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +48,9 @@
 		A200000000000010 /* MenuControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuControls.swift; sourceTree = "<group>"; };
 		A20000000000000F /* NativeGlassBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeGlassBridge.swift; sourceTree = "<group>"; };
 		A20000000000000E /* GlassStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassStyles.swift; sourceTree = "<group>"; };
+		A200000000000015 /* LookAwayDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LookAwayDesign.swift; sourceTree = "<group>"; };
+		A200000000000016 /* SecretsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretsManager.swift; sourceTree = "<group>"; };
+		A200000000000017 /* NatureBackgroundService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NatureBackgroundService.swift; sourceTree = "<group>"; };
 		A20000000000000C /* LookAway.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LookAway.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -108,6 +114,8 @@
 				A200000000000012 /* MenuBarWindowDismisser.swift */,
 				A200000000000013 /* BreakInputShield.swift */,
 				A200000000000007 /* LaunchAtLoginManager.swift */,
+				A200000000000016 /* SecretsManager.swift */,
+				A200000000000017 /* NatureBackgroundService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -118,6 +126,7 @@
 				A200000000000008 /* MenuBarView.swift */,
 				A200000000000010 /* MenuControls.swift */,
 				A20000000000000E /* GlassStyles.swift */,
+				A200000000000015 /* LookAwayDesign.swift */,
 				A20000000000000F /* NativeGlassBridge.swift */,
 				A200000000000009 /* BreakOverlayView.swift */,
 			);
@@ -206,6 +215,9 @@
 				A10000000000000C /* GlassStyles.swift in Sources */,
 				A10000000000000D /* NativeGlassBridge.swift in Sources */,
 				A10000000000000E /* MenuControls.swift in Sources */,
+				A100000000000015 /* LookAwayDesign.swift in Sources */,
+				A100000000000016 /* SecretsManager.swift in Sources */,
+				A100000000000017 /* NatureBackgroundService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

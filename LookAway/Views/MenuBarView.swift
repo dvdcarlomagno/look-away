@@ -8,7 +8,9 @@ final class AppViewModel: ObservableObject {
     let timerEngine: TimerEngine
     let microphoneMonitor: MicrophoneMonitor
     let sleepWakeMonitor: SleepWakeMonitor
+    let natureBackgroundService = NatureBackgroundService()
     let breakOverlayController: BreakOverlayController
+    let secretsManager = SecretsManager.shared
     private let notificationHandler = NotificationHandler()
 
     private var cancellables = Set<AnyCancellable>()
@@ -19,8 +21,7 @@ final class AppViewModel: ObservableObject {
         microphoneMonitor = MicrophoneMonitor()
         sleepWakeMonitor = SleepWakeMonitor()
         breakOverlayController = BreakOverlayController()
-
-        breakOverlayController.bind(to: timerEngine)
+        breakOverlayController.bind(to: timerEngine, natureBackground: natureBackgroundService)
         breakOverlayController.installObservers()
 
         notificationHandler.timerEngine = timerEngine
@@ -30,7 +31,20 @@ final class AppViewModel: ObservableObject {
 
         bind()
 
+        if NatureBackgroundService.shouldPreload(
+            phase: timerEngine.phase,
+            remainingSeconds: timerEngine.remainingSeconds
+        ) {
+            natureBackgroundService.preloadForUpcomingBreak()
+        }
+
         configManager.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+
+        secretsManager.objectWillChange
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
             }
@@ -41,6 +55,15 @@ final class AppViewModel: ObservableObject {
         configManager.$config
             .sink { [weak self] config in
                 self?.timerEngine.applyConfig(config)
+            }
+            .store(in: &cancellables)
+
+        Publishers.CombineLatest(timerEngine.$phase, timerEngine.$remainingSeconds)
+            .sink { [weak self] phase, remainingSeconds in
+                guard let self else { return }
+                if NatureBackgroundService.shouldPreload(phase: phase, remainingSeconds: remainingSeconds) {
+                    self.natureBackgroundService.preloadForUpcomingBreak()
+                }
             }
             .store(in: &cancellables)
 
@@ -88,6 +111,10 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    func saveUnsplashAccessKey(_ key: String) {
+        secretsManager.saveUnsplashAccessKey(key)
+    }
+
     func quit() {
         NSApplication.shared.terminate(nil)
     }
@@ -100,11 +127,14 @@ struct MenuBarView: View {
     @ObservedObject var timerEngine: TimerEngine
     @State private var showsSettings = false
     @State private var draftConfig: AppConfig
+    @State private var draftUnsplashAccessKey: String
+    @FocusState private var unsplashKeyFocused: Bool
 
     init(viewModel: AppViewModel, timerEngine: TimerEngine) {
         self.viewModel = viewModel
         self.timerEngine = timerEngine
         _draftConfig = State(initialValue: viewModel.configManager.config)
+        _draftUnsplashAccessKey = State(initialValue: viewModel.secretsManager.unsplashAccessKey ?? "")
     }
 
     var body: some View {
@@ -127,6 +157,18 @@ struct MenuBarView: View {
         .animation(.smooth(duration: 0.22), value: showsSettings)
         .onChange(of: viewModel.configManager.config) { _, newValue in
             draftConfig = newValue
+        }
+        .onChange(of: viewModel.secretsManager.unsplashAccessKey) { _, newValue in
+            if !unsplashKeyFocused {
+                draftUnsplashAccessKey = newValue ?? ""
+            }
+        }
+        .onChange(of: showsSettings) { _, isOpen in
+            if isOpen {
+                draftUnsplashAccessKey = viewModel.secretsManager.unsplashAccessKey ?? ""
+            } else {
+                commitUnsplashAccessKey()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .lookAwayBreakStarted)) { _ in
             dismiss()
@@ -160,7 +202,7 @@ struct MenuBarView: View {
                 StreakBadge(count: timerEngine.consecutiveBreaks, compact: true)
 
                 if timerEngine.phase == .onBreak {
-                    LookAwayStatusChip(text: "Break", tint: LookAwayBrand.pink)
+                    LookAwayStatusChip(text: "Break", tint: LookAwayBrand.forest)
                 } else if timerEngine.phase == .paused {
                     LookAwayStatusChip(text: "Paused", tint: .secondary)
                 }
@@ -261,6 +303,27 @@ struct MenuBarView: View {
                 showsSubtitle: false
             )
 
+            sectionLabel("Nature backgrounds")
+
+            ConfigSecureFieldRow(
+                title: "Unsplash access key",
+                subtitle: "Access Key from unsplash.com/developers",
+                text: $draftUnsplashAccessKey,
+                placeholder: "Paste Access Key (Client-ID)",
+                compact: true,
+                showsSubtitle: false,
+                isFocused: $unsplashKeyFocused,
+                onCommit: commitUnsplashAccessKey
+            )
+
+            if viewModel.secretsManager.unsplashAccessKey == nil {
+                Text("Without a key, breaks use a calm gradient instead of tree photos.")
+                    .font(MenuPanelMetrics.controlFont)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 2)
+            }
+
             Button {
                 viewModel.configManager.openConfigFile()
             } label: {
@@ -270,6 +333,15 @@ struct MenuBarView: View {
             }
             .buttonStyle(.plain)
             .padding(.top, 2)
+
+            Button {
+                NSWorkspace.shared.open(SecretsManager.secretsFileURL.deletingLastPathComponent())
+            } label: {
+                Label("Reveal secrets folder", systemImage: "key")
+                    .font(MenuPanelMetrics.controlFont)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -317,6 +389,10 @@ struct MenuBarView: View {
         transform(&copy)
         draftConfig = copy
         viewModel.configManager.replace(with: copy)
+    }
+
+    private func commitUnsplashAccessKey() {
+        viewModel.saveUnsplashAccessKey(draftUnsplashAccessKey)
     }
 
     private func sectionLabel(_ title: String, isFirst: Bool = false) -> some View {

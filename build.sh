@@ -43,6 +43,8 @@ swiftc \
   "$ROOT/LookAway/Services/MenuBarWindowDismisser.swift" \
   "$ROOT/LookAway/Services/BreakInputShield.swift" \
   "$ROOT/LookAway/Services/LaunchAtLoginManager.swift" \
+  "$ROOT/LookAway/Services/SecretsManager.swift" \
+  "$ROOT/LookAway/Services/NatureBackgroundService.swift" \
   "$ROOT/LookAway/Views/MenuBarView.swift" \
   "$ROOT/LookAway/Views/MenuControls.swift" \
   "$ROOT/LookAway/Views/LookAwayDesign.swift" \
