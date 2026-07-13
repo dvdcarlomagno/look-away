@@ -30,7 +30,6 @@ struct HoldToConfirmButton: View {
                 .foregroundStyle(foregroundColor)
                 .padding(.horizontal, horizontalPadding)
                 .padding(.vertical, verticalPadding)
-                .background { buttonBackground }
                 .overlay(alignment: .leading) {
                     GeometryReader { geometry in
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -39,6 +38,7 @@ struct HoldToConfirmButton: View {
                     }
                     .allowsHitTesting(false)
                 }
+                .lookAwayGlassSurface(cornerRadius: cornerRadius, tint: glassTint, interactive: true)
                 .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -61,35 +61,23 @@ struct HoldToConfirmButton: View {
         case .destructive:
             return overlayGlass ? Color(red: 1, green: 0.55, blue: 0.52) : .red
         default:
-            return overlayGlass ? LookAwayBrand.cream : .primary
+            return overlayGlass ? .white : .primary
         }
     }
 
-    @ViewBuilder
-    private var buttonBackground: some View {
+    private var glassTint: Color? {
         if overlayGlass {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color.white.opacity(isHolding ? 0.18 : 0.12))
-                .background {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                }
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.24), lineWidth: 0.5)
-                }
-        } else {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color.primary.opacity(isHolding ? 0.12 : 0.08))
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
-                }
+            return role == .destructive
+                ? LookAwayGlass.overlayDestructiveTint
+                : LookAwayGlass.overlayTint
         }
+        return role == .destructive
+            ? Color.red.opacity(0.08)
+            : LookAwayGlass.menuPanelTint
     }
 
     private var progressFillColor: Color {
-        role == .destructive ? .red : LookAwayBrand.forest
+        role == .destructive ? .red : LookAwayBrand.accent
     }
 
     private func beginHold() {
@@ -132,51 +120,21 @@ struct StreakBadge: View {
         HStack(spacing: compact ? 4 : 4) {
             Image(systemName: "flame.fill")
                 .font(.system(size: compact ? MenuPanelMetrics.stepperIconSize : 12, weight: .semibold))
-                .foregroundStyle(count > 0 ? LookAwayBrand.wood : Color.secondary.opacity(0.5))
+                .foregroundStyle(count > 0 ? LookAwayBrand.accent : Color.secondary.opacity(0.5))
 
             Text("\(count)")
                 .font(MenuPanelMetrics.valueFont)
                 .monospacedDigit()
                 .foregroundStyle(count > 0 ? .primary : .secondary)
         }
+        .padding(.horizontal, compact ? 8 : 10)
+        .padding(.vertical, compact ? 4 : 6)
+        .lookAwayCapsuleSurface(tint: LookAwayGlass.menuPanelTint)
         .accessibilityLabel("\(count) consecutive breaks")
     }
 }
 
-struct MenuActionButtonStyle: ButtonStyle {
-    var role: ButtonRole?
-    var centered: Bool = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(MenuPanelMetrics.controlFont)
-            .foregroundStyle(foregroundColor)
-            .frame(maxWidth: .infinity, alignment: centered ? .center : .leading)
-            .padding(.horizontal, MenuPanelMetrics.controlHorizontalPadding)
-            .padding(.vertical, MenuPanelMetrics.controlVerticalPadding)
-            .background(background(isPressed: configuration.isPressed))
-            .contentShape(RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius, style: .continuous))
-    }
-
-    private var foregroundColor: Color {
-        switch role {
-        case .destructive:
-            return .red
-        default:
-            return .primary
-        }
-    }
-
-    @ViewBuilder
-    private func background(isPressed: Bool) -> some View {
-        RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius, style: .continuous)
-            .fill(Color.primary.opacity(isPressed ? 0.14 : 0.08))
-            .overlay {
-                RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
-            }
-    }
-}
+/// Menu bar action buttons — liquid glass with interactive press feedback.
 
 struct ConfigNumberRow: View {
     let title: String
@@ -228,7 +186,7 @@ struct ConfigNumberRow: View {
         }
         .padding(.horizontal, MenuPanelMetrics.rowHorizontalPadding)
         .padding(.vertical, MenuPanelMetrics.rowVerticalPadding)
-        .lookAwaySurface(cornerRadius: MenuPanelMetrics.cornerRadius)
+        .lookAwayGlassSurface(cornerRadius: MenuPanelMetrics.cornerRadius)
         .onAppear {
             textValue = "\(value)"
         }
@@ -296,10 +254,10 @@ struct ConfigNumberRow: View {
         .frame(minWidth: compact ? 64 : 72)
         .padding(.horizontal, MenuPanelMetrics.controlHorizontalPadding * 0.75)
         .padding(.vertical, MenuPanelMetrics.controlVerticalPadding * 0.55)
-        .background {
-            RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius * 0.8, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
-        }
+        .lookAwayGlassSurface(
+            cornerRadius: LookAwayGlass.insetCornerRadius,
+            tint: LookAwayGlass.menuPanelTint
+        )
     }
 
     private var valueFieldWidth: CGFloat {
@@ -314,10 +272,7 @@ struct ConfigNumberRow: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.borderless)
-        .background {
-            Circle()
-                .fill(Color.primary.opacity(0.08))
-        }
+        .lookAwayCapsuleSurface(tint: LookAwayGlass.menuPanelTint)
     }
 
     private func applyValue(_ newValue: Int) {
@@ -382,7 +337,7 @@ struct ConfigSegmentedRow<T: Hashable & Identifiable>: View where T: CaseIterabl
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, MenuPanelMetrics.rowHorizontalPadding)
         .padding(.vertical, MenuPanelMetrics.rowVerticalPadding)
-        .lookAwaySurface(cornerRadius: MenuPanelMetrics.cornerRadius)
+        .lookAwayGlassSurface(cornerRadius: MenuPanelMetrics.cornerRadius)
     }
 }
 
@@ -422,15 +377,15 @@ struct ConfigSecureFieldRow: View {
                 .onSubmit(onCommit)
                 .padding(.horizontal, MenuPanelMetrics.controlHorizontalPadding)
                 .padding(.vertical, MenuPanelMetrics.controlVerticalPadding * 0.75)
-                .background {
-                    RoundedRectangle(cornerRadius: MenuPanelMetrics.cornerRadius * 0.8, style: .continuous)
-                        .fill(Color.primary.opacity(0.06))
-                }
+                .lookAwayGlassSurface(
+                    cornerRadius: LookAwayGlass.insetCornerRadius,
+                    tint: LookAwayGlass.menuPanelTint
+                )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, MenuPanelMetrics.rowHorizontalPadding)
         .padding(.vertical, MenuPanelMetrics.rowVerticalPadding)
-        .lookAwaySurface(cornerRadius: MenuPanelMetrics.cornerRadius)
+        .lookAwayGlassSurface(cornerRadius: MenuPanelMetrics.cornerRadius)
         .onChange(of: isFocused.wrappedValue) { _, focused in
             if !focused {
                 onCommit()
@@ -474,6 +429,6 @@ struct ConfigToggleRow: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, MenuPanelMetrics.rowHorizontalPadding)
         .padding(.vertical, MenuPanelMetrics.rowVerticalPadding)
-        .lookAwaySurface(cornerRadius: MenuPanelMetrics.cornerRadius)
+        .lookAwayGlassSurface(cornerRadius: MenuPanelMetrics.cornerRadius)
     }
 }

@@ -1,28 +1,15 @@
 import AppKit
-import Combine
 import SwiftUI
 
 @MainActor
 final class BreakOverlayController: ObservableObject {
-    @Published private(set) var shortcutWarning: String?
-
     private var panels: [NSPanel] = []
     private weak var timerEngine: TimerEngine?
-    private weak var natureBackground: NatureBackgroundService?
     private let inputShield = BreakInputShield()
     private var keepFrontTimer: Timer?
-    private var warningClearTimer: Timer?
-    private var natureBackgroundCancellable: AnyCancellable?
 
-    func bind(to engine: TimerEngine, natureBackground: NatureBackgroundService) {
+    func bind(to engine: TimerEngine) {
         timerEngine = engine
-        self.natureBackground = natureBackground
-
-        natureBackgroundCancellable = natureBackground.$backgroundImage
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.refreshOverlayRoots()
-            }
     }
 
     func installObservers() {
@@ -62,19 +49,11 @@ final class BreakOverlayController: ObservableObject {
     func showOverlay() {
         hideOverlay()
         MenuBarWindowDismisser.closeIfOpen()
-        guard let engine = timerEngine, let natureBackground else { return }
+        guard timerEngine != nil else { return }
 
-        inputShield.onBlockedShortcut = { [weak self] message in
-            self?.showShortcutWarning(message)
-        }
         inputShield.activate()
-        mountOverlayPanels(engine: engine, natureBackground: natureBackground)
+        mountOverlayPanels()
         startKeepFrontTimer()
-
-        Task {
-            await natureBackground.ensureBackgroundForBreak()
-            refreshOverlayRoots()
-        }
 
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -82,10 +61,6 @@ final class BreakOverlayController: ObservableObject {
     func hideOverlay() {
         stopKeepFrontTimer()
         inputShield.deactivate()
-        warningClearTimer?.invalidate()
-        warningClearTimer = nil
-        shortcutWarning = nil
-        natureBackground?.reset()
 
         for panel in panels {
             panel.orderOut(nil)
@@ -94,7 +69,9 @@ final class BreakOverlayController: ObservableObject {
         panels.removeAll()
     }
 
-    private func mountOverlayPanels(engine: TimerEngine, natureBackground: NatureBackgroundService) {
+    private func mountOverlayPanels() {
+        guard let engine = timerEngine else { return }
+
         for (index, screen) in NSScreen.screens.enumerated() {
             let panel = NSPanel(
                 contentRect: screen.frame,
@@ -104,8 +81,8 @@ final class BreakOverlayController: ObservableObject {
             )
             panel.level = BreakOverlayWindowLevel.shield
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
-            panel.isOpaque = false
-            panel.backgroundColor = .clear
+            panel.isOpaque = true
+            panel.backgroundColor = .black
             panel.hasShadow = false
             panel.hidesOnDeactivate = false
             panel.ignoresMouseEvents = false
@@ -113,7 +90,12 @@ final class BreakOverlayController: ObservableObject {
             panel.becomesKeyOnlyIfNeeded = false
 
             let hosting = NSHostingController(
-                rootView: makeBreakOverlayView(engine: engine, natureBackground: natureBackground)
+                rootView: BreakOverlayView(
+                    engine: engine,
+                    onEndBreak: { [weak engine] in
+                        engine?.abortBreakEarly()
+                    }
+                )
             )
             if #available(macOS 13.0, *) {
                 hosting.sizingOptions = []
@@ -128,26 +110,6 @@ final class BreakOverlayController: ObservableObject {
             if index == 0 {
                 panel.makeKeyAndOrderFront(nil)
             }
-        }
-    }
-
-    private func makeBreakOverlayView(engine: TimerEngine, natureBackground: NatureBackgroundService) -> BreakOverlayView {
-        BreakOverlayView(
-            engine: engine,
-            overlayController: self,
-            natureBackground: natureBackground,
-            onEndBreak: { [weak engine] in
-                engine?.abortBreakEarly()
-            }
-        )
-    }
-
-    private func refreshOverlayRoots() {
-        guard let engine = timerEngine, let natureBackground, !panels.isEmpty else { return }
-
-        for panel in panels {
-            guard let hosting = panel.contentViewController as? NSHostingController<BreakOverlayView> else { continue }
-            hosting.rootView = makeBreakOverlayView(engine: engine, natureBackground: natureBackground)
         }
     }
 
@@ -169,19 +131,6 @@ final class BreakOverlayController: ObservableObject {
     private func stopKeepFrontTimer() {
         keepFrontTimer?.invalidate()
         keepFrontTimer = nil
-    }
-
-    private func showShortcutWarning(_ message: String) {
-        shortcutWarning = message
-        refreshOverlayRoots()
-
-        warningClearTimer?.invalidate()
-        warningClearTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                self?.shortcutWarning = nil
-                self?.refreshOverlayRoots()
-            }
-        }
     }
 
     private func pinHostingViewToPanel(_ hosting: NSHostingController<BreakOverlayView>, panel: NSPanel) {

@@ -16,6 +16,23 @@ else
   TARGET="x86_64-apple-macosx14.0"
 fi
 
+SWIFT_FLAGS=()
+GLASS_PROBE="$(mktemp /tmp/lookaway_glass_probe.XXXXXX.swift)"
+cat > "$GLASS_PROBE" <<'EOF'
+import SwiftUI
+@available(macOS 26, *)
+func lookAwayGlassProbe() -> some View {
+    Text("probe").glassEffect()
+}
+EOF
+if swiftc -typecheck "$GLASS_PROBE" -sdk "$SDK" -target "$TARGET" 2>/dev/null; then
+  SWIFT_FLAGS+=(-D LIQUID_GLASS)
+  echo "Liquid Glass: enabled (SwiftUI glassEffect available in SDK)"
+else
+  echo "Liquid Glass: using material fallback (SDK lacks glassEffect)"
+fi
+rm -f "$GLASS_PROBE"
+
 echo "Building $APP_NAME for $TARGET ..."
 
 rm -rf "$APP_BUNDLE"
@@ -25,6 +42,7 @@ swiftc \
   -o "$MACOS_DIR/$APP_NAME" \
   -target "$TARGET" \
   -sdk "$SDK" \
+  "${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"}" \
   -framework AppKit \
   -framework SwiftUI \
   -framework Combine \
@@ -43,13 +61,10 @@ swiftc \
   "$ROOT/LookAway/Services/MenuBarWindowDismisser.swift" \
   "$ROOT/LookAway/Services/BreakInputShield.swift" \
   "$ROOT/LookAway/Services/LaunchAtLoginManager.swift" \
-  "$ROOT/LookAway/Services/SecretsManager.swift" \
-  "$ROOT/LookAway/Services/NatureBackgroundService.swift" \
   "$ROOT/LookAway/Views/MenuBarView.swift" \
   "$ROOT/LookAway/Views/MenuControls.swift" \
   "$ROOT/LookAway/Views/LookAwayDesign.swift" \
   "$ROOT/LookAway/Views/GlassStyles.swift" \
-  "$ROOT/LookAway/Views/NativeGlassBridge.swift" \
   "$ROOT/LookAway/Views/BreakOverlayView.swift" \
   "$ROOT/LookAway/Controllers/BreakOverlayController.swift"
 
@@ -76,4 +91,10 @@ codesign --force --deep --sign - "$APP_BUNDLE"
 
 echo ""
 echo "Built: $APP_BUNDLE"
-echo "Run:   open \"$APP_BUNDLE\""
+
+if [[ "${1:-}" == "--no-open" ]]; then
+  echo "Run:   open \"$APP_BUNDLE\""
+else
+  open "$APP_BUNDLE"
+  echo "Launched: $APP_BUNDLE"
+fi

@@ -24,4 +24,3 @@ LookAway/Resources/AppIcon.icns
 
 # Local config (lives in ~/.config/look-away/, not in repo)
 config.json
-secrets.json

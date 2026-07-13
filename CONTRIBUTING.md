@@ -5,8 +5,9 @@ Thank you for considering a contribution. This project is a native macOS menu ba
 ## Before you start
 
 1. Read the [README](README.md) for build instructions and architecture overview.
-2. Search [existing issues](https://github.com/dvdcarlomagno/look-away/issues) to avoid duplicate work.
-3. For large changes, open an issue first to discuss the approach.
+2. Skim [`knowledge/INDEX.md`](knowledge/INDEX.md) for UI and overlay conventions.
+3. Search [existing issues](https://github.com/dvdcarlomagno/look-away/issues) to avoid duplicate work.
+4. For large changes, open an issue first to discuss the approach.
 
 ## Development setup
 
@@ -15,6 +16,7 @@ Thank you for considering a contribution. This project is a native macOS menu ba
 - macOS 14 (Sonoma) or later
 - Apple Command Line Tools (`xcode-select --install`)
 - Xcode 15+ (optional, for the Xcode project workflow)
+- Xcode 26 / macOS 26 SDK (optional, for native Liquid Glass at compile time)
 
 ### Quick build
 
@@ -23,11 +25,14 @@ Thank you for considering a contribution. This project is a native macOS menu ba
 open build/LookAway.app
 ```
 
+The script prints whether **Liquid Glass** is enabled (`LIQUID_GLASS` compile flag) or material fallbacks are used.
+
 ### Xcode workflow
 
 1. Open `LookAway.xcodeproj`.
 2. Select the LookAway target → Signing & Capabilities → choose your development team.
-3. Build and run (`Cmd+R`).
+3. (Optional) Add `LIQUID_GLASS` to **Active Compilation Conditions** when using the macOS 26 SDK.
+4. Build and run (`Cmd+R`).
 
 ## Project structure
 
@@ -36,20 +41,34 @@ open build/LookAway.app
 | `LookAway/LookAwayApp.swift` | App entry point, menu bar extra |
 | `LookAway/Models/` | Data models (`AppConfig`, `BreakStats`) |
 | `LookAway/Services/` | Timer, config, monitors (mic, sleep), launch-at-login, input shield |
-| `LookAway/Views/` | SwiftUI UI (menu bar panel, break overlay, hold-to-confirm controls) |
+| `LookAway/Views/` | SwiftUI UI — menu panel, break overlay, glass styles, controls |
 | `LookAway/Controllers/` | `NSPanel` overlay controller for multi-display breaks |
+| `knowledge/` | Internal design notes (liquid glass, break overlay, palette) |
 | `scripts/` | App icon generation |
 | `build.sh` | Command-line build without full Xcode |
 
-### Key services
+### Key files
 
 | File | Purpose |
 |------|---------|
 | `TimerEngine.swift` | Work/break/pause phases, streak, skip penalty |
-| `BreakOverlayController.swift` | Multi-monitor overlay panels |
+| `BreakOverlayController.swift` | Multi-monitor black overlay panels |
+| `BreakOverlayView.swift` | Lock screen UI — streak, glass timer, title, skip |
 | `BreakInputShield.swift` | Blocks ⌘Q / ⌘W / ⌘Tab / Esc during breaks |
+| `GlassStyles.swift` | `LookAwayGlassPanel`, liquid glass helpers, button styles |
+| `LookAwayDesign.swift` | Pink accent tokens, layout metrics, status chips |
+| `MenuBarView.swift` | Menu bar panel and settings |
+| `MenuControls.swift` | Hold-to-confirm buttons, config rows, streak badge |
 | `BreakStats.swift` | Streak and pending penalty persistence (`stats.json`) |
 | `MenuBarWindowDismisser.swift` | Closes menu bar window when break starts |
+
+## UI guidelines
+
+- **One accent color** — `LookAwayBrand.accent` (pink). Do not introduce secondary earthy or multi-accent palettes.
+- **Menu panel** — single outer `glassEffect` via `LookAwayGlassPanel`. Inner controls use `lookAwayControlSurface` fills, not nested glass.
+- **Break overlay** — true black background. Glass only on the countdown timer (and subtle streak capsule). No full-screen containers or photo backgrounds.
+- **Liquid Glass** — follow [Apple’s SwiftUI guide](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views). Do not use AppKit `NSGlassEffectView` KVC bridges from SwiftUI.
+- Apply `.glassEffect` **after** padding and overlays that affect layout.
 
 ## Coding guidelines
 
@@ -67,9 +86,10 @@ open build/LookAway.app
 3. Verify the app builds with `./build.sh` (or Xcode).
 4. Manually smoke-test:
    - Timer tick, pause/resume, restart (hold)
-   - Break overlay appears centered on all displays
-   - Hold **Skip Break** ends break early (streak resets, penalty applied)
+   - Break overlay: black screen, streak badge, bold glass timer, **Look Away** title, faint skip
+   - Hold **Skip** on overlay or menu ends break early (streak resets, penalty applied)
    - Menu bar closes and disables during break
+   - Menu panel corners look uniform (no double-radius shell)
    - Settings persist to `config.json`
 5. Open a PR describing **what** changed and **why**.
 6. Link any related issues.
@@ -79,7 +99,7 @@ open build/LookAway.app
 Include:
 
 - macOS version and chip (Apple Silicon / Intel)
-- How you built the app (`build.sh` vs Xcode)
+- How you built the app (`build.sh` vs Xcode) and whether Liquid Glass was enabled in the build log
 - Steps to reproduce
 - Expected vs actual behavior
 - Screenshots or screen recordings when UI-related

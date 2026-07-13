@@ -1,241 +1,278 @@
-import AppKit
 import SwiftUI
 
+// MARK: - Design tokens (Apple Liquid Glass guidelines)
+
 enum LookAwayGlass {
+    /// Spacing for `GlassEffectContainer` — controls when adjacent effects blend.
+    static let containerSpacing: CGFloat = MenuPanelMetrics.spacing
+
     static let panelCornerRadius: CGFloat = 22
     static let cardCornerRadius: CGFloat = 18
-}
+    static let controlCornerRadius: CGFloat = MenuPanelMetrics.cornerRadius
+    static let insetCornerRadius: CGFloat = MenuPanelMetrics.cornerRadius * 0.8
 
-extension View {
-    func lookAwayCapsuleGlass(tint: Color? = nil) -> some View {
-        padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background {
-                if NativeGlass.isSupported {
-                    NativeGlassCapsule(tint: tint)
-                } else {
-                    Capsule().fill(.ultraThinMaterial)
-                }
-            }
+    static func accentTint(_ opacity: Double = 0.08) -> Color {
+        LookAwayBrand.accent.opacity(opacity)
     }
 
-    func lookAwayGlassCard(cornerRadius: CGFloat = LookAwayGlass.cardCornerRadius, tint: Color? = nil) -> some View {
-        background {
-            NativeGlassBox(cornerRadius: cornerRadius, tint: tint) {
-                Color.clear
-            }
-            .allowsHitTesting(false)
-        }
+    static var menuPanelTint: Color {
+        accentTint(0.08)
     }
-}
 
-private struct NativeGlassCapsule: NSViewRepresentable {
-    var tint: Color?
+    static var overlayTint: Color {
+        LookAwayBrand.accent.opacity(0.14)
+    }
 
-    func makeNSView(context: Context) -> NSView {
-        guard NativeGlass.isSupported,
-              let glassType = NSClassFromString("NSGlassEffectView") as? NSView.Type else {
-            let effect = NSVisualEffectView()
-            effect.material = .menu
-            effect.blendingMode = .behindWindow
-            effect.state = .active
-            return effect
-        }
+    static var overlayDestructiveTint: Color {
+        Color(red: 1, green: 0.45, blue: 0.42).opacity(0.18)
+    }
 
-        let glass = glassType.init(frame: .zero)
-        glass.setValue(999.0, forKey: "cornerRadius")
+    /// Inner control fill — no nested glass inside the menu panel.
+    static func controlFill(tint: Color? = nil) -> some ShapeStyle {
         if let tint {
-            glass.setValue(NSColor(tint), forKey: "tintColor")
+            return AnyShapeStyle(tint)
+        }
+        return AnyShapeStyle(Color.primary.opacity(0.07))
+    }
+
+    #if LIQUID_GLASS
+    static var panelGlass: Glass {
+        .regular.tint(menuPanelTint)
+    }
+
+    static func controlGlass(tint: Color? = menuPanelTint, interactive: Bool = false) -> Glass {
+        var glass = Glass.regular
+        if let tint {
+            glass = glass.tint(tint)
+        }
+        if interactive {
+            glass = glass.interactive()
         }
         return glass
     }
+    #endif
+}
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        guard NativeGlass.isSupported else { return }
-        nsView.setValue(999.0, forKey: "cornerRadius")
-        if let tint {
-            nsView.setValue(NSColor(tint), forKey: "tintColor")
+// MARK: - Panel + control glass
+
+extension View {
+    /// Subtle fill for controls inside the menu panel (avoids nested glass corner artifacts).
+    func lookAwayControlSurface(
+        cornerRadius: CGFloat = LookAwayGlass.controlCornerRadius,
+        tint: Color? = LookAwayGlass.menuPanelTint
+    ) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(LookAwayGlass.controlFill(tint: tint))
+        }
+    }
+
+    func lookAwayCapsuleSurface(tint: Color? = LookAwayGlass.menuPanelTint) -> some View {
+        background {
+            Capsule(style: .continuous)
+                .fill(LookAwayGlass.controlFill(tint: tint))
         }
     }
 }
 
-struct GlassActionButtonStyle: ButtonStyle {
-    var tint: Color?
+#if LIQUID_GLASS
+extension View {
+    func lookAwayGlassEffect(
+        _ glass: Glass = LookAwayGlass.panelGlass,
+        cornerRadius: CGFloat = LookAwayGlass.controlCornerRadius
+    ) -> some View {
+        glassEffect(glass, in: .rect(cornerRadius: cornerRadius))
+    }
 
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(.body, design: .rounded, weight: .medium))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .opacity(configuration.isPressed ? 0.82 : 1)
-            .background {
-                NativeGlassBox(cornerRadius: 12, tint: tint) {
-                    Color.clear.frame(maxWidth: .infinity, minHeight: 1)
-                }
-                .allowsHitTesting(false)
-            }
+    func lookAwayCapsuleGlass(tint: Color? = LookAwayGlass.menuPanelTint, interactive: Bool = false) -> some View {
+        lookAwayGlassEffect(
+            LookAwayGlass.controlGlass(tint: tint, interactive: interactive),
+            cornerRadius: LookAwayGlass.controlCornerRadius
+        )
     }
 }
 
-struct TimerHeroCard: View {
-    @ObservedObject var engine: TimerEngine
+/// Single outer glass shell for the menu panel — no container wrapper.
+struct LookAwayGlassPanel<Content: View>: View {
+    let content: Content
 
-    private var accent: Color {
-        switch engine.phase {
-        case .working:
-            return LookAwayBrand.forest
-        case .preBreakWarning:
-            return LookAwayBrand.wood
-        case .onBreak:
-            return LookAwayBrand.sage
-        case .paused:
-            return .secondary
-        }
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
     }
 
     var body: some View {
-        NativeGlassBox(cornerRadius: LookAwayGlass.cardCornerRadius, tint: accent.opacity(0.08)) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(engine.phaseDisplayName)
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.secondary)
-
-                Text(engine.displayTime)
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(.primary)
-
-                if !engine.statusDetail.isEmpty {
-                    Text(engine.statusDetail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-        }
-    }
-}
-
-struct BreakLockScreenTimer: View {
-    let time: String
-
-    var body: some View {
-        NativeGlassBox(cornerRadius: 36, tint: Color.white.opacity(0.14)) {
-            Text(time)
-                .font(.system(size: 82, weight: .thin, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [
-                            Color.white,
-                            Color.white.opacity(0.92),
-                            Color.white.opacity(0.78),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .shadow(color: Color.white.opacity(0.35), radius: 0, y: 1)
-                .padding(.horizontal, 40)
-                .padding(.vertical, 10)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 36, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.62),
-                            Color.white.opacity(0.18),
-                            Color.white.opacity(0.04),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-                .padding(1)
-        }
-        .shadow(color: .black.opacity(0.28), radius: 24, y: 12)
-    }
-}
-
-struct BreakOverlayStatusChip: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(.system(.caption, design: .rounded, weight: .semibold))
-            .foregroundStyle(LookAwayBrand.cream.opacity(0.92))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background {
-                Capsule()
-                    .fill(Color.white.opacity(0.14))
-                    .background {
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                    }
-                    .overlay {
-                        Capsule()
-                            .strokeBorder(Color.white.opacity(0.28), lineWidth: 0.5)
-                    }
-            }
-    }
-}
-
-struct BreakOverlayStreakBadge: View {
-    let count: Int
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(count > 0 ? LookAwayBrand.cream : LookAwayBrand.cream.opacity(0.45))
-
-            Text("\(count)")
-                .font(.system(.caption, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(LookAwayBrand.cream.opacity(count > 0 ? 0.92 : 0.55))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background {
-            Capsule()
-                .fill(Color.white.opacity(0.12))
-                .background {
-                    Capsule()
-                        .fill(.ultraThinMaterial)
-                }
-                .overlay {
-                    Capsule()
-                        .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.5)
-                }
-        }
-        .accessibilityLabel("\(count) consecutive breaks")
-    }
-}
-
-struct AmbientBackdrop: View {
-    var body: some View {
-        NatureFallbackBackground()
-            .ignoresSafeArea()
+        content
+            .glassEffect(
+                LookAwayGlass.panelGlass,
+                in: .rect(cornerRadius: LookAwayGlass.panelCornerRadius)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: LookAwayGlass.panelCornerRadius, style: .continuous))
     }
 }
 
 struct LookAwayGlassGroup<Content: View>: View {
     let spacing: CGFloat
-    @ViewBuilder var content: () -> Content
+    let content: () -> Content
+
+    init(spacing: CGFloat = LookAwayGlass.containerSpacing, @ViewBuilder content: @escaping () -> Content) {
+        self.spacing = spacing
+        self.content = content
+    }
 
     var body: some View {
-        if NativeGlass.isSupported {
-            NativeGlassStack(spacing: spacing) {
-                content()
-            }
-        } else {
+        GlassEffectContainer(spacing: spacing) {
             content()
         }
+    }
+}
+#else
+extension View {
+    func lookAwayGlassEffect(cornerRadius: CGFloat = LookAwayGlass.controlCornerRadius, tint: Color? = LookAwayGlass.menuPanelTint) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    if let tint {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(tint)
+                    }
+                }
+        }
+    }
+
+    func lookAwayCapsuleGlass(tint: Color? = LookAwayGlass.menuPanelTint, interactive: Bool = false) -> some View {
+        background {
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    if let tint {
+                        Capsule(style: .continuous).fill(tint)
+                    }
+                }
+        }
+    }
+}
+
+struct LookAwayGlassPanel<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .lookAwayGlassEffect(
+                cornerRadius: LookAwayGlass.panelCornerRadius,
+                tint: LookAwayGlass.menuPanelTint
+            )
+            .clipShape(RoundedRectangle(cornerRadius: LookAwayGlass.panelCornerRadius, style: .continuous))
+    }
+}
+
+struct LookAwayGlassGroup<Content: View>: View {
+    let spacing: CGFloat
+    let content: () -> Content
+
+    init(spacing: CGFloat = LookAwayGlass.containerSpacing, @ViewBuilder content: @escaping () -> Content) {
+        self.spacing = spacing
+        self.content = content
+    }
+
+    var body: some View {
+        content()
+    }
+}
+#endif
+
+// MARK: - Button styles
+
+struct LookAwayGlassButtonStyle: ButtonStyle {
+    var role: ButtonRole?
+    var centered: Bool = false
+    var overlay: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(MenuPanelMetrics.controlFont)
+            .foregroundStyle(foregroundColor)
+            .frame(maxWidth: .infinity, alignment: centered ? .center : .leading)
+            .padding(.horizontal, MenuPanelMetrics.controlHorizontalPadding)
+            .padding(.vertical, MenuPanelMetrics.controlVerticalPadding)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .modifier(LookAwayGlassButtonBackground(role: role, overlay: overlay))
+            .contentShape(RoundedRectangle(cornerRadius: LookAwayGlass.controlCornerRadius, style: .continuous))
+    }
+
+    private var foregroundColor: Color {
+        switch role {
+        case .destructive:
+            return overlay ? Color(red: 1, green: 0.55, blue: 0.52) : .red
+        default:
+            return overlay ? .white : .primary
+        }
+    }
+}
+
+private struct LookAwayGlassButtonBackground: ViewModifier {
+    let role: ButtonRole?
+    let overlay: Bool
+
+    func body(content: Content) -> some View {
+        content.lookAwayControlSurface(
+            cornerRadius: LookAwayGlass.controlCornerRadius,
+            tint: backgroundTint
+        )
+    }
+
+    private var backgroundTint: Color? {
+        switch role {
+        case .destructive:
+            return overlay ? LookAwayGlass.overlayDestructiveTint : Color.red.opacity(0.08)
+        default:
+            return overlay ? LookAwayGlass.overlayTint : LookAwayGlass.menuPanelTint
+        }
+    }
+}
+
+typealias MenuActionButtonStyle = LookAwayGlassButtonStyle
+typealias GlassActionButtonStyle = LookAwayGlassButtonStyle
+
+extension View {
+    func lookAwayGlassSurface(
+        cornerRadius: CGFloat = LookAwayGlass.controlCornerRadius,
+        tint: Color? = LookAwayGlass.menuPanelTint,
+        interactive: Bool = false
+    ) -> some View {
+        lookAwayControlSurface(cornerRadius: cornerRadius, tint: tint)
+    }
+}
+
+// MARK: - Composite components
+
+struct TimerHeroCard: View {
+    @ObservedObject var engine: TimerEngine
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(engine.phaseDisplayName)
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Text(engine.displayTime)
+                .font(.system(size: 28, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+
+            if !engine.statusDetail.isEmpty {
+                Text(engine.statusDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .lookAwayGlassSurface(cornerRadius: LookAwayGlass.cardCornerRadius, tint: LookAwayGlass.accentTint())
     }
 }

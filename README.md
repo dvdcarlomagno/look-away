@@ -1,6 +1,6 @@
 # Look Away
 
-A native macOS menu bar app that reminds you to step away from the screen on a repeating timer. When a work interval ends, a full-screen break overlay covers all displays until the break finishes—or you end it early with deliberate friction.
+A native macOS menu bar app that reminds you to step away from the screen on a repeating timer. When a work interval ends, a full-screen black break overlay covers all displays until the break finishes—or you end it early with deliberate friction.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -10,18 +10,25 @@ A native macOS menu bar app that reminds you to step away from the screen on a r
 - **Break streak** — consecutive completed breaks shown with a flame icon; skipping resets the streak
 - **Skip penalty** — ending a break early adds extra minutes to your next break (configurable)
 - Configurable work and break durations in the menu bar **Settings** panel (saved to `~/.config/look-away/config.json`)
-- Full-screen **nature break overlay** on all monitors — random forest/wood photos from Unsplash (or a calm earthy gradient when offline), centered content, keyboard focus captured
+- Full-screen **black break overlay** on all monitors — minimal UI, keyboard focus captured
 - Break overlay hardening — shielding window level, blocked shortcuts (⌘Q, ⌘W, ⌘Tab, Esc), menu bar disabled during breaks
 - Skips breaks while the microphone is in use (calls/meetings) — checks **all** input devices, not just the system default
 - Pauses while the display is off, the Mac is asleep, or the screen is locked; **resumes** where you left off on a short return, **restarts the work timer** (and counts the break streak) when away time reaches the configured break duration (manual pause always resumes)
 - Launch at login (toggle in Settings)
 - Pre-break warning notification (optional, off by default) with **Extend 3 minutes** action in the notification and menu bar
-- Native Liquid Glass UI on macOS 26 (via runtime `NSGlassEffectView`; falls back to materials on older macOS)
+- Native Liquid Glass UI on macOS 26 via SwiftUI `glassEffect` (material fallback on older macOS / SDKs)
+
+## Design
+
+- **Single accent color** — warm pink (`LookAwayBrand.accent`) used across the menu panel, streak badge, and break overlay glass tints
+- **Menu panel** — one outer liquid-glass shell; inner buttons and settings rows use subtle fills (no nested glass) to avoid double-corner artifacts
+- **Break overlay** — true black background, no photo backgrounds or earthy palette
 
 ## Requirements
 
 - macOS 14 (Sonoma) or later
 - **Apple Command Line Tools** (no full Xcode required for `build.sh`)
+- **macOS 26 SDK / Xcode 26** (optional) — enables native SwiftUI Liquid Glass at build time; otherwise the app uses material fallbacks
 
 Install Command Line Tools if needed:
 
@@ -45,7 +52,7 @@ Build and run:
 open build/LookAway.app
 ```
 
-This compiles with `swiftc`, wraps the binary in a `.app` bundle, generates the forest-toned **eyes** app icon, and ad-hoc signs it for local use.
+This compiles with `swiftc`, wraps the binary in a `.app` bundle, generates the pink **eyes** app icon, and ad-hoc signs it for local use. The build script probes the SDK and prints whether Liquid Glass is enabled.
 
 If macOS blocks the first launch, right-click the app → **Open**.
 
@@ -56,6 +63,8 @@ If you have Xcode installed:
 1. Open `LookAway.xcodeproj` in Xcode.
 2. Select the **LookAway** target → **Signing & Capabilities** → choose your development team.
 3. Build and run (`Cmd+R`).
+
+For Liquid Glass in Xcode, add `LIQUID_GLASS` to **Active Compilation Conditions** when building with the macOS 26 SDK (same flag `build.sh` sets automatically).
 
 ## First launch
 
@@ -74,22 +83,6 @@ On first launch, the app creates `~/.config/look-away/config.json` with defaults
 Break streak data is stored separately in `~/.config/look-away/stats.json`.
 
 Copy values from [`config.example.json`](config.example.json) if you prefer to start from the repo template.
-
-### Nature backgrounds (Unsplash)
-
-For random tree photos on the break screen, open **Settings → Nature backgrounds** in the menu bar panel and paste your Unsplash **Access Key** (also labeled **Client-ID** on Unsplash). It is saved locally to `~/.config/look-away/secrets.json` and is never committed to git.
-
-You can also copy [`secrets.example.json`](secrets.example.json) to that path manually:
-
-```json
-{
-  "unsplashAccessKey": "your-access-key-here"
-}
-```
-
-**Important:** use the **Access Key**, not the **Secret Key**. The secret is for OAuth server flows only; using it returns HTTP 401 and you'll only see the gradient fallback.
-
-Find keys on your [Unsplash developer app page](https://unsplash.com/oauth/applications). Without a valid access key, breaks use a calm forest-to-wood gradient fallback.
 
 ## Config reference
 
@@ -118,13 +111,18 @@ Interval fields support +/- steppers and direct numeric entry (press Return to a
 
 ## Break overlay
 
-When a break starts, a full-screen nature photo (or earthy gradient) appears on every connected display with a centered card:
+When a break starts, a full-screen **true black** overlay covers every connected display:
 
-- Countdown timer
-- **Streak badge** (flame icon + consecutive completed breaks)
-- **Skip Break** — hold for **11 seconds** to end early (resets streak, adds skip penalty to next break)
+| Element | Description |
+|---------|-------------|
+| Streak badge | Flame icon + consecutive completed breaks (top of center stack) |
+| Countdown | **Bold** timer with pink-tinted liquid glass pill |
+| Title | **Look Away** below the timer |
+| Skip | Faint hold-to-skip control at the bottom (~20% opacity, hold **11 seconds**) |
 
-The overlay uses a shielding window level, captures keyboard focus, and blocks common escape shortcuts. A brief **“Break in progress”** toast appears if a blocked shortcut is pressed.
+You can also end a break early from the menu bar **Skip** control (hold 11 seconds).
+
+The overlay uses a shielding window level, captures keyboard focus, and blocks common escape shortcuts.
 
 ## Architecture
 
@@ -135,9 +133,7 @@ LookAwayApp (MenuBarExtra)
             ├── TimerEngine             → work / break / pause phases, streak & penalty
             ├── MicrophoneMonitor       → skip breaks during calls
             ├── SleepWakeMonitor        → pause while away; long return restarts work timer
-            ├── NatureBackgroundService   → Unsplash nature photos for break overlay
-            ├── SecretsManager            → ~/.config/look-away/secrets.json
-            └── BreakOverlayController  → full-screen NSPanel per display
+            └── BreakOverlayController  → full-screen black NSPanel per display
                     └── BreakInputShield → keyboard shortcut blocking during breaks
 ```
 
@@ -145,16 +141,15 @@ LookAwayApp (MenuBarExtra)
 |-----------|------|
 | `TimerEngine` | Core countdown logic, phase transitions, streak/penalty, menu bar label updates |
 | `BreakOverlayController` | Multi-display panels, keep-front timer |
+| `BreakOverlayView` | Black overlay UI — streak, glass timer, title, skip |
 | `BreakInputShield` | Local/global event monitors for blocked shortcuts during breaks |
 | `BreakStats` / `stats.json` | Persists consecutive break streak and pending skip penalty |
-| `NativeGlassBridge` | Bridges `NSGlassEffectView` when available on newer macOS |
+| `GlassStyles` / `LookAwayDesign` | Pink accent tokens, `LookAwayGlassPanel`, liquid glass helpers |
 | `ConfigManager` | JSON persistence with file watcher for live reload |
-| `NatureBackgroundService` | Fetches random curated nature photos from Unsplash per break |
-| `SecretsManager` | Loads Unsplash access key from local secrets file |
 
 ## App icon
 
-`./build.sh` generates a forest-toned gradient icon with a white **eyes** SF Symbol via `scripts/generate_app_icon.swift`, bundles it as `AppIcon.icns`, and sets `CFBundleIconFile`.
+`./build.sh` generates a pink gradient icon with a white **eyes** SF Symbol via `scripts/generate_app_icon.swift`, bundles it as `AppIcon.icns`, and sets `CFBundleIconFile`.
 
 To regenerate only the icon assets:
 
@@ -179,11 +174,13 @@ killall Dock
 | Action | Streak | Next break penalty |
 |--------|--------|-------------------|
 | Complete break (timer reaches 0) | +1 | None |
-| **Skip Break** (hold 11s) or menu **Skip** / **Restart** during break | Reset to 0 | +`skipPenaltyMinutes` |
+| **Skip** on overlay (hold 11s) or menu **Skip** / **Restart** during break | Reset to 0 | +`skipPenaltyMinutes` |
 
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, project structure, and pull request guidelines.
+
+Internal design notes live in [`knowledge/`](knowledge/INDEX.md).
 
 ## License
 
